@@ -8,6 +8,7 @@ page breaks.
 import collections
 import math
 import re
+import unicodedata
 
 import fitz
 
@@ -24,7 +25,9 @@ REFS = re.compile(
 # A caption is "Figure 2." / "Fig. 2:" / "Table 1 |"; "Table 2 shows ..." is prose.
 CAPTION = re.compile(r'^(fig(?:ure)?s?\.?|table(?:au)?)\s*([A-Z]?\d+[a-z]?)\s*([.:|—–-]|$)', re.I)
 CAPTION_LOOSE = re.compile(r'^(fig(?:ure)?\.?|table(?:au)?)\s*[A-Z]?\d+[a-z]?\b', re.I)
-MATH = re.compile(r'[=∑∫√≤≥≈±×÷∂∞∝∈∇]')
+MATH = re.compile(r'[=∑∫√≤≥≈±×÷∂∞∝∈∇⩽⩾→≠]')
+GREEK = re.compile(r'[α-ωΑ-Ω]')
+MATH_WORDS = {'exp', 'log', 'max', 'min', 'sup', 'inf', 'lim', 'sin', 'cos', 'tan', 'det', 'arg', 'var', 'cov', 'mod'}
 PAGE_NUMBER = re.compile(r'(?:page\s*)?\d{1,4}(?:\s*(?:of|/|sur|de)\s*\d{1,4})?', re.I)
 TERMINAL = re.compile(r'[.!?:]["”’)\]]*$')
 # Superscript numbers such as citation callouts "¹,²" or "[3–5]" markers.
@@ -49,6 +52,15 @@ def join_lines(lines):
     return join_rows([(line, None, None) for line in lines])[0]
 
 
+# LaTeX PDFs often draw accents as separate characters: "Universit´e", "Qu´ebec".
+SPACING_ACCENTS = {'´': '\u0301', '`': '\u0300', '¨': '\u0308', 'ˆ': '\u0302', '¸': '\u0327', '˜': '\u0303'}
+
+
+def fix_accents(text):
+    return re.sub(r'([´`¨ˆ˜¸])\s?([A-Za-z])',
+                  lambda m: unicodedata.normalize('NFC', m.group(2) + SPACING_ACCENTS[m.group(1)]), text)
+
+
 def join_rows(rows):
     """Join (text, box, page) rows; also return where each row landed in the text.
 
@@ -57,7 +69,7 @@ def join_rows(rows):
     """
     out, spans = '', []
     for text, box, page in rows:
-        line = re.sub(r'\s+', ' ', text.replace('\xad', '-')).strip()
+        line = re.sub(r'\s+', ' ', fix_accents(text.replace('\xad', '-'))).strip()
         if not line:
             continue
         if out and re.search(r'[a-zà-ÿ]-$', out) and re.match(r'[a-zà-ÿ]', line):
@@ -96,19 +108,41 @@ def _style(spans, test):
     return sum(len(s['text']) for s in spans if test(s)) >= chars * .7
 
 
+# TeX and MathType fonts. Their glyphs are often mapped to the wrong characters.
+MATH_FONT = re.compile(r'^(?:[A-Z]{6}\+)?(?:CM(?:MI|SY|EX|BSY|MIB)|MSAM|MSBM|MT(?:MI|SY|EX)|Euclid|'
+                       r'Symbol|rsfs|esint|wasy|LMMath|STIX\w*Math|\w*-?Math\b|CambriaMath)', re.I)
+BIG_DELIMITERS = re.compile(r'^(?:[A-Z]{6}\+)?(?:CMEX|MTEX|Euclid.*Extra)', re.I)
+# MathType's MTMI fonts store "(", ")" and "/" under the codes of ".", "/" and "=".
+MTMI_FIX = str.maketrans({'.': '(', '/': ')', '=': '/'})
+UNPRINTABLE = re.compile(r'[\x00-\x1f\x7f\ufffd\ue000-\uf8ff\u239b-\u23b3]')
+
+
+def _span_text(span):
+    font = span['font']
+    if BIG_DELIMITERS.match(font):
+        return ''                          # stretched brackets and braces of a display
+    text = span['text']
+    if re.match(r'^(?:[A-Z]{6}\+)?MTMI', font):
+        text = text.translate(MTMI_FIX)
+    return UNPRINTABLE.sub('', text)
+
+
 def _lines(block):
     lines = []
     for line in block['lines']:
-        parts, kept = [], []
+        parts, kept, math = [], [], 0
         for span in line['spans']:
             if span['flags'] & fitz.TEXT_FONT_SUPERSCRIPT and not _keep_superscript(span, ''.join(parts)):
                 continue
-            parts.append(span['text'])
-            if span['text'].strip():
-                kept.append(span)
+            text = _span_text(span)
+            if MATH_FONT.match(span['font']) or not text.strip() and span['text'].strip():
+                math += max(1, len(span['text'].strip()))
+            parts.append(text)
+            if text.strip():
+                kept.append({**span, 'text': text})
         text = ''.join(parts).strip()
-        if text:
-            lines.append({'text': text, 'box': line['bbox'], 'spans': kept})
+        if text or math:
+            lines.append({'text': text, 'box': line['bbox'], 'spans': kept, 'math': math})
     return lines
 
 
@@ -135,6 +169,7 @@ def _starts_with_heading(lines, width):
 
 def _block(lines, page):
     spans = [s for line in lines for s in line['spans']]
+    ink = sum(len(line['text'].replace(' ', '')) for line in lines) + sum(line['math'] for line in lines)
     chars = sum(len(s['text']) for s in spans) or 1
     rows = [(line['text'], line['box'], page.number + 1) for line in lines]
     return {
@@ -147,6 +182,7 @@ def _block(lines, page):
         'size': round(sum(s['size'] * len(s['text']) for s in spans) / chars, 2),
         'bold': _style(spans, _is_bold),
         'italic': bool(_style(spans, _is_italic)),
+        'math': sum(line['math'] for line in lines) / (ink or 1),
     }
 
 
@@ -162,7 +198,9 @@ def read_blocks(page):
         if _starts_with_heading(lines, width):
             blocks.append(_block(lines[:1], page))
             lines = lines[1:]
-        blocks.append(_block(lines, page))
+        block = _block(lines, page)
+        if block['text']:
+            blocks.append(block)
     return blocks
 
 
@@ -256,9 +294,16 @@ def classify(t, b, body):
     letters = sum(c.isalpha() for c in t)
     if MATH.search(t) and len(t) < 240 and (len(words) <= 2 or (len(words) <= 4 and letters < len(t) * .45)):
         return 'equation', False, None
+    prose = [w for w in words if w.lower() not in MATH_WORDS]
+    if b.get('math', 0) >= .35 and len(prose) <= 3 and len(t) < 240:
+        return 'equation', False, None
     digits = sum(c.isdigit() for c in t)
     if len(t) < 90 and digits >= 2 and digits > letters and not TERMINAL.search(t):
         return 'tablecell', False, None
+    # A stray piece of a displayed formula: "σ", "+", "if ξ ≠ 0,", "(1)".
+    if not prose and len(t) < 80 and (b.get('math', 0) > 0 or MATH.search(t) or GREEK.search(t)
+                                      or re.fullmatch(r'\(\d+[a-z]?\)', t)):
+        return 'equation', False, None
     return 'text', False, None
 
 
@@ -302,7 +347,7 @@ def extract(doc):
             if top and b['size'] < body - .5 and len(t) < 120:
                 continue                   # journal name / volume line above the text
             kind, heading, depth = classify(t, b, body)
-            if not heading and is_footnote(b, blocks, body, height):
+            if kind in ('text', 'tablecell') and is_footnote(b, blocks, body, height):
                 kind = 'note'
             if bibliography and heading and not SECTIONS.fullmatch(t):
                 heading = False            # a bold author name inside the reference list
@@ -347,6 +392,11 @@ def join_paragraphs(items):
     for item in items:
         last_text = next((i for i in range(len(out) - 1, -1, -1)
                           if out[i]['kind'] not in ('figure', 'table', 'tablecell', 'note')), None)
+        if item['kind'] == 'equation' and out and out[-1]['kind'] == 'equation' \
+                and out[-1]['page'] == item['page']:
+            out[-1]['rows'] = out[-1]['rows'] + item['rows']   # pieces of one display
+            out[-1]['original'] = join_rows(out[-1]['rows'])[0]
+            continue
         if item['kind'] == 'text' and last_text is not None:
             prev = out[last_text]
             if prev['kind'] == 'text' and prev['section'] == item['section'] and continues(prev, item):

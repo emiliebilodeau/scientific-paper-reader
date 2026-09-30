@@ -1,7 +1,9 @@
 """Local web server: serves the interface and turns uploaded PDFs into passages."""
 import json
 import secrets
+import sys
 import threading
+import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -16,6 +18,8 @@ FILES = {'/app.js': 'text/javascript', '/textprep.js': 'text/javascript', '/styl
 TOKEN = secrets.token_urlsafe(24)
 PDF = None
 PDF_LOCK = threading.Lock()
+LAST_PING = None                   # set by the page; the server stops when it goes quiet
+IDLE_LIMIT = 10 * 60
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -63,9 +67,16 @@ class Handler(BaseHTTPRequestHandler):
         self.send(404, {'error': 'Introuvable.'})
 
     def do_POST(self):
-        global PDF
+        global PDF, LAST_PING
         if not self.allowed() or self.headers.get('X-Reader-Token') != TOKEN:
             return self.send(403, {'error': 'Accès refusé.'})
+        if self.path == '/ping':
+            LAST_PING = time.monotonic()
+            return self.send(200, {'ok': True})
+        if self.path == '/quit':
+            self.send(200, {'ok': True})
+            threading.Thread(target=self.server.shutdown, daemon=True).start()
+            return
         if self.path != '/upload':
             return self.send(404, {'error': 'Introuvable.'})
         try:
@@ -94,10 +105,25 @@ class Handler(BaseHTTPRequestHandler):
             self.send(400, {'error': str(e) or 'Impossible de lire ce PDF.'})
 
 
+def stop_when_idle(server):
+    """Without a console window, the page is the only way to see the server:
+    stop it once no page has pinged for a while (tab or browser closed)."""
+    while True:
+        time.sleep(30)
+        if LAST_PING is not None and time.monotonic() - LAST_PING > IDLE_LIMIT:
+            server.shutdown()
+            return
+
+
 def main(open_browser=True, port=0):
+    if sys.stdout is None:             # started with pythonw.exe: no console
+        log = open(STATIC.parent / 'lecteur.log', 'w', encoding='utf-8', buffering=1)
+        sys.stdout = sys.stderr = log
     server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
     url = f'http://127.0.0.1:{server.server_port}/'
-    print('\nLecteur scientifique - ouvrir : ' + url + '\nFermer cette fenêtre pour arrêter.\n', flush=True)
+    print('\nLecteur scientifique - ouvrir : ' + url +
+          '\nPour arrêter : bouton « Quitter » dans la page, ou fermer cette fenêtre.\n', flush=True)
+    threading.Thread(target=stop_when_idle, args=(server,), daemon=True).start()
     if open_browser:
         threading.Timer(.6, lambda: webbrowser.open(url)).start()
     try:

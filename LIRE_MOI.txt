@@ -1,4 +1,4 @@
-LECTEUR SCIENTIFIQUE — Version 3.1
+LECTEUR SCIENTIFIQUE — Version 3.2
 
 INSTALLATION WINDOWS
 1. Extraire tout le ZIP dans un dossier (ne pas lancer depuis le ZIP).
@@ -8,7 +8,11 @@ INSTALLATION WINDOWS
 3. Double-cliquer sur Lancer.bat. La première fois, Internet est nécessaire
    pour installer PyMuPDF. Aucun traducteur n'est installé.
 4. L'application s'ouvre dans le navigateur. Edge ou Chrome recommandé.
-   Garder la fenêtre noire ouverte pendant l'utilisation; la fermer arrête l'app.
+   Aucune fenêtre noire ne reste ouverte (elle n'apparaît que la première fois,
+   pendant l'installation). Pour arrêter le lecteur : bouton « Quitter » en haut
+   de la page. Il s'arrête aussi tout seul 10 minutes après la fermeture de
+   l'onglet. En cas de problème, lancer « Lancer.bat console » depuis une
+   invite de commandes pour voir les messages, ou lire le fichier lecteur.log.
 5. Facultatif : double-cliquer sur Creer_raccourci.bat pour ajouter sur le
    Bureau un raccourci « Lecteur scientifique » avec son icône. Il lance
    Lancer.bat. Si le dossier est déplacé ensuite, relancer Creer_raccourci.bat.
