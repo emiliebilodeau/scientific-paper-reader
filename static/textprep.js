@@ -126,13 +126,14 @@
 
   /**
    * Text to speak for one extracted item, or '' to skip it.
-   * opts: {citations, bibliography, figures: read|skip, tables: announce|read|skip,
+   * opts: {citations, bibliography, notes: skip|read, figures: read|skip, tables: announce|read|skip,
    *        equations: announce|read|skip}
    * previous: the item spoken just before, to avoid repeating an announcement.
    */
   function prepare(item, opts = {}, previous = null) {
     const kind = item.kind;
     if (kind === 'reference' && opts.bibliography !== false) return '';
+    if (kind === 'note' && opts.notes !== 'read') return '';
     if (kind === 'figure' && opts.figures === 'skip') return '';
     if (kind === 'table' || kind === 'tablecell') {
       const mode = opts.tables || 'announce';

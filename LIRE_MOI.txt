@@ -36,6 +36,10 @@ PORTÉE ET LIMITES
 - Le lecteur ne réécrit pas le contenu scientifique. Il extrait le texte,
   filtre certaines citations [n], DOI et URL, et retire les en-têtes/pieds
   récurrents selon leur emplacement. Le filtrage n'est pas parfait.
+- Les notes de bas de page (petits caractères au pied d'une colonne, comme
+  « Corresponding author address » ou le DOI) sont ignorées par défaut; le
+  réglage « Notes de bas de page » permet de les lire. Le titre, les auteurs
+  et le résumé centrés en haut de la première page sont lus avant les colonnes.
 - Les titres de section numérotés sont reconnus par leur police et leur mise en
   forme. Les sous-titres comme « 1.1 IDF Curves » sont reconnus même en
   caractères normaux ou collés au paragraphe qui les suit. Des symboles mathématiques simples en ligne, comme I = Q/D, sont

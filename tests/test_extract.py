@@ -6,7 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from make_pdf import ARTICLE, glued_heading_page, two_column_article  # noqa: E402
+from make_pdf import ARTICLE, front_page_with_footnote, glued_heading_page, two_column_article  # noqa: E402
 from reader.extract import extract, find_gutter, join_lines, read_blocks  # noqa: E402
 
 
@@ -37,7 +37,7 @@ class TwoColumnArticle(unittest.TestCase):
     def test_columns_are_not_interleaved(self):
         sections = [i['section'] for i in self.items if i['kind'] != 'reference']
         order = list(dict.fromkeys(sections))
-        self.assertEqual(order, ['Début de l’article', '1. Introduction', '2. Data and methods',
+        self.assertEqual(order, ['1. Introduction', '2. Data and methods',
                                  '3. Results', '4. Discussion', '5. Conclusions'])
 
     def test_only_the_bibliography_is_marked_as_reference(self):
@@ -94,6 +94,35 @@ class OneColumnArticle(unittest.TestCase):
         spoken = ' '.join(squash(i['original']) for i in extract(doc)['items'] if i['kind'] == 'text')
         for paragraph in prose():
             self.assertIn(squash(paragraph), spoken)
+
+
+class FrontPage(unittest.TestCase):
+    """Layout of Jalbert et al. (2015): centred front matter, a short left column
+    ending in a footnote, the paragraph continuing in the right column."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.items = extract(front_page_with_footnote())['items']
+
+    def test_paragraph_follows_the_columns(self):
+        intro = [i for i in self.items if i['original'].startswith('Precipitation plays')]
+        self.assertEqual(len(intro), 1)
+        text = intro[0]['original']
+        self.assertIn('freshwater supplies, among many other areas.', text)
+        self.assertIn('fairly well known, the evolution of rainfall', text)
+        self.assertEqual(intro[0]['pages'], [1, 2])
+
+    def test_footnotes_and_running_heads_are_set_aside(self):
+        notes = [i['original'] for i in self.items if i['kind'] == 'note']
+        self.assertTrue(any(n.startswith('Corresponding author') for n in notes), notes)
+        self.assertTrue(any(n.startswith('DOI') for n in notes), notes)
+        spoken = ' '.join(i['original'] for i in self.items if i['kind'] == 'text')
+        self.assertNotIn('Corresponding author', spoken)
+        self.assertNotIn('JOURNAL OF CLIMATE', spoken)
+
+    def test_title_is_a_heading(self):
+        self.assertEqual(self.items[0]['kind'], 'heading')
+        self.assertTrue(self.items[0]['original'].startswith('Canadian RCM'))
 
 
 class Headings(unittest.TestCase):

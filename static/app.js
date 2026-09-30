@@ -22,7 +22,7 @@ function status(t) { $('status').textContent = t; }
 function options() {
   return {
     citations: $('citations').checked, bibliography: $('bibliography').checked,
-    figures: $('figures').value, tables: $('tables').value, equations: $('equations').value,
+    notes: $('notes').value, figures: $('figures').value, tables: $('tables').value, equations: $('equations').value,
   };
 }
 
@@ -378,7 +378,7 @@ $('pageprev').onclick = () => showPage(page - 1);
 $('pagenext').onclick = () => showPage(page + 1);
 $('section').onchange = rebuild;
 $('rebuild').onclick = () => { if (confirm('Repréparer le texte et effacer les corrections manuelles ?')) rebuild(); };
-for (const id of ['equations', 'figures', 'tables', 'citations', 'bibliography']) {
+for (const id of ['equations', 'figures', 'tables', 'notes', 'citations', 'bibliography']) {
   $(id).onchange = () => { store.set(id, $(id).type === 'checkbox' ? $(id).checked : $(id).value); if (raw.length) rebuild(); };
   const saved = store.get(id);
   if (saved !== null) { if ($(id).type === 'checkbox') $(id).checked = saved === 'true'; else $(id).value = saved; }

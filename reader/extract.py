@@ -173,7 +173,10 @@ def find_gutter(blocks, width):
     column-width block crosses. Full-width blocks (titles, abstracts, wide
     figures) are ignored while searching.
     """
-    narrow = [b for b in blocks if b['box'][2] - b['box'][0] < width * .6 and len(b['text']) > 1]
+    # Centred lines (title, authors, affiliations) cross the gutter without being
+    # full width; they are read as full-width material, not as a column.
+    narrow = [b for b in blocks if b['box'][2] - b['box'][0] < width * .6 and len(b['text']) > 1
+              and abs((b['box'][0] + b['box'][2]) / 2 - width / 2) > width * .06]
     if len(narrow) < 2:
         return None
     step = 2
@@ -235,9 +238,10 @@ def classify(t, b, body):
     words = re.findall(r'[A-Za-zÀ-ÿ]{3,}', t)
     number = re.match(r'^((?:\d+\.)*\d+|[IVX]+)\.?\s+(\S.*)$', t)
     depth = number.group(1).count('.') if number and number.group(1)[0].isdigit() else (0 if number else None)
-    short = len(t) < 110 and not TERMINAL.search(t.rstrip(':')) or len(t) < 60 and t.endswith(':')
-    starts_upper = bool(re.match(r'^(?:[\dIVX.]+\s+)?[A-ZÀ-Ý]', t))
     larger = b['size'] >= body + 1
+    short = len(t) < (180 if larger else 110) and not TERMINAL.search(t.rstrip(':')) \
+        or len(t) < 60 and t.endswith(':')
+    starts_upper = bool(re.match(r'^(?:[\dIVX.]+\s+)?[A-ZÀ-Ý]', t))
     if SECTIONS.fullmatch(t):
         return 'heading', True, depth
     if short and starts_upper and len(words) <= 14 and not MATH.search(t):
@@ -256,6 +260,19 @@ def classify(t, b, body):
     if len(t) < 90 and digits >= 2 and digits > letters and not TERMINAL.search(t):
         return 'tablecell', False, None
     return 'text', False, None
+
+
+def is_footnote(b, blocks, body, height):
+    """Small type at the foot of a column, with no body text below it."""
+    x0, y0, x1, _ = b['box']
+    if b['size'] >= body - .8 or y0 < height * .55:
+        return False
+    for o in blocks:
+        ox0, oy0, ox1, _ = o['box']
+        if o is not b and oy0 > y0 and ox0 < x1 and ox1 > x0 and o['size'] >= body - .3 \
+                and len(o['text']) > 40:
+            return False               # body text continues below: this is not the foot
+    return True
 
 
 def extract(doc):
@@ -282,7 +299,11 @@ def extract(doc):
                 continue                   # running head or foot
             if PAGE_NUMBER.fullmatch(t) and (top or bottom or len(b['lines']) == 1):
                 continue
+            if top and b['size'] < body - .5 and len(t) < 120:
+                continue                   # journal name / volume line above the text
             kind, heading, depth = classify(t, b, body)
+            if not heading and is_footnote(b, blocks, body, height):
+                kind = 'note'
             if bibliography and heading and not SECTIONS.fullmatch(t):
                 heading = False            # a bold author name inside the reference list
             if heading:
@@ -312,7 +333,7 @@ def extract(doc):
 def continues(prev, cur):
     """True when cur is the rest of a paragraph cut by a column or page break."""
     a, b = prev['original'], cur['original']
-    if TERMINAL.search(a) or not b:
+    if TERMINAL.search(a) or not b or abs(prev['size'] - cur['size']) > .8:
         return False
     if re.match(r'^[a-zà-ÿ(,;]', b) or re.search(r'[,;\-–(]$|\b(?:the|of|and|in|a|an|to|for|with|by)$', a):
         return True
@@ -324,8 +345,8 @@ def join_paragraphs(items):
     """Glue paragraph pieces back together, even around a figure caption."""
     out = []
     for item in items:
-        last_text = next((i for i in range(len(out) - 1, -1, -1) if out[i]['kind'] != 'figure'
-                          and out[i]['kind'] != 'table' and out[i]['kind'] != 'tablecell'), None)
+        last_text = next((i for i in range(len(out) - 1, -1, -1)
+                          if out[i]['kind'] not in ('figure', 'table', 'tablecell', 'note')), None)
         if item['kind'] == 'text' and last_text is not None:
             prev = out[last_text]
             if prev['kind'] == 'text' and prev['section'] == item['section'] and continues(prev, item):
