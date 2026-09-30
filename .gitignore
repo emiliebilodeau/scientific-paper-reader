@@ -1,0 +1,9 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pdf
+!tests/fixtures/*.pdf
+Article_pour_ecoute.txt
+.DS_Store
+Thumbs.db
