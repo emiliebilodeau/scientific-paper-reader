@@ -17,7 +17,6 @@ Guide d’utilisation complet : [LIRE_MOI.txt](LIRE_MOI.txt).
 | --- | --- |
 | `app.py` | Point d’entrée (démarre le serveur local et ouvre le navigateur). |
 | `reader/extract.py` | PDF → passages : colonnes, en-têtes/pieds, titres, légendes, équations, bibliographie, paragraphes recollés entre colonnes et pages. |
-| `reader/rewrite.py` | Reformulation optionnelle avec Ollama (modèle local), avec rejet des reformulations qui omettent du contenu. |
 | `reader/server.py` | Serveur HTTP local (127.0.0.1 seulement, jeton de session). |
 | `static/textprep.js` | Nettoyage du texte, mots pour les symboles, découpage en phrases (partagé avec les tests). |
 | `static/app.js` | Interface et moteur de lecture (phrase surlignée, reprise si le navigateur saute une phrase). |

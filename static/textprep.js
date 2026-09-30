@@ -154,5 +154,52 @@
     return clean(item.text || item.original, opts);
   }
 
-  return { clean, sentences, chunks, prepare, dropAuthorYear };
+  function tokens(text) {
+    const out = [], re = /[A-Za-zÀ-ÿ0-9]+/g;
+    let m;
+    while ((m = re.exec(text))) out.push({ w: m[0].toLowerCase(), s: m.index, e: m.index + m[0].length });
+    return out;
+  }
+
+  /**
+   * Where each spoken sentence comes from in the original extracted text, as
+   * [start, end] character offsets (or null). Cleaning removed citations and
+   * turned symbols into words, so sentences are matched by their first and
+   * last words, searching forward from the previous sentence.
+   */
+  function locate(sents, original) {
+    const src = tokens(original || '');
+    const out = [];
+    let cursor = 0;
+    const matchAt = (seq, i) => seq.every((w, k) => src[i + k] && src[i + k].w === w);
+    for (const sentence of sents) {
+      const words = tokens(sentence).map(t => t.w);
+      if (!words.length || cursor >= src.length) { out.push(null); continue; }
+      const reach = Math.min(src.length, cursor + words.length * 2 + 25);
+      let start = -1;
+      for (let skip = 0; skip < Math.min(4, words.length) && start < 0; skip++) {
+        for (let n = Math.min(3, words.length - skip); n >= 1 && start < 0; n--) {
+          if (n === 1 && words[skip].length < 4) continue;
+          for (let i = cursor; i < reach && start < 0; i++) if (matchAt(words.slice(skip, skip + n), i)) start = Math.max(cursor, i - skip);
+        }
+      }
+      if (start < 0) start = cursor;
+      let end = -1;
+      const guess = start + words.length - 1;
+      for (let n = Math.min(3, words.length); n >= 1 && end < 0; n--) {
+        const tail = words.slice(words.length - n);
+        let best = -1;
+        for (let i = start; i < Math.min(src.length, start + words.length * 2 + 25); i++) {
+          if (matchAt(tail, i) && (best < 0 || Math.abs(i + n - 1 - guess) < Math.abs(best - guess))) best = i + n - 1;
+        }
+        end = best;
+      }
+      if (end < start) end = Math.min(src.length - 1, guess);
+      out.push([src[start].s, src[end].e]);
+      cursor = end + 1;
+    }
+    return out;
+  }
+
+  return { clean, sentences, chunks, prepare, dropAuthorYear, locate };
 }));

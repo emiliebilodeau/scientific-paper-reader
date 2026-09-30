@@ -6,7 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from make_pdf import ARTICLE, two_column_article  # noqa: E402
+from make_pdf import ARTICLE, glued_heading_page, two_column_article  # noqa: E402
 from reader.extract import extract, find_gutter, join_lines, read_blocks  # noqa: E402
 
 
@@ -51,6 +51,16 @@ class TwoColumnArticle(unittest.TestCase):
         self.assertEqual(kind['where Q = discharge and D = drainage area.'], 'text')
         self.assertEqual(kind['Table 1. Cross-validation scores for the three regions.'], 'table')
         self.assertEqual(kind['2.2. Statistical model'], 'heading')
+        self.assertEqual(kind['1.1 IDF Curves'], 'heading')
+        sub = next(i for i in self.items if i['original'].startswith('Intensity-duration'))
+        self.assertEqual((sub['section'], sub['subsection']), ('1. Introduction', '1.1 IDF Curves'))
+
+    def test_every_line_keeps_its_place_on_the_page(self):
+        for item in self.items:
+            covered = ''.join(item['original'][s[0]:s[1]] for s in item['spans'])
+            self.assertEqual(covered.replace(' ', ''), item['original'].replace(' ', ''))
+            for start, end, page, x0, y0, x1, y1 in item['spans']:
+                self.assertTrue(0 <= x0 < x1 <= 612 and 0 <= y0 < y1 <= 792)
 
     def test_citation_superscripts_dropped_unit_exponents_kept(self):
         joined = ' '.join(i['original'] for i in self.text)
@@ -84,6 +94,14 @@ class OneColumnArticle(unittest.TestCase):
         spoken = ' '.join(squash(i['original']) for i in extract(doc)['items'] if i['kind'] == 'text')
         for paragraph in prose():
             self.assertIn(squash(paragraph), spoken)
+
+
+class Headings(unittest.TestCase):
+    def test_plain_numbered_subsection_glued_to_its_paragraph(self):
+        items = extract(glued_heading_page())['items']
+        self.assertEqual([i['kind'] for i in items], ['heading', 'text'])
+        self.assertEqual(items[0]['original'], '1.1 IDF Curves')
+        self.assertEqual(items[1]['subsection'], '1.1 IDF Curves')
 
 
 class Lines(unittest.TestCase):

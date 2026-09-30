@@ -6,9 +6,9 @@ const T = window.TextPrep;
 const token = document.querySelector('meta[name=reader-token]').content;
 const synth = window.speechSynthesis;
 
-let raw = [], passages = [], rewriteTexts = new Map(), rewriteApplied = false;
+let raw = [], passages = [];
 let pos = { p: 0, s: 0 };          // passage index, sentence index
-let page = 1, pages = 0, voices = [], editing = false;
+let page = 1, pages = 0, sizes = [], voices = [], editing = false;
 let running = false, paused = false, generation = 0, current = null, watchdog = null;
 let startSeen = false;              // this browser reports onstart, so a missing one means silence
 
@@ -28,9 +28,10 @@ function options() {
 
 /* ---------- Building passages ---------- */
 
-function spokenText(b, opts, previous) {
-  if (rewriteApplied && rewriteTexts.has(b.id) && b.kind === 'text') return T.clean(rewriteTexts.get(b.id), opts);
-  return T.prepare(b, opts, previous);
+function withSentences(b) {
+  b.sentences = T.chunks(b.text, 400);
+  b.ranges = T.locate(b.sentences, b.original);
+  return b;
 }
 
 function rebuild() {
@@ -40,10 +41,10 @@ function rebuild() {
   passages = [];
   for (const b of raw) {
     if (section && b.section !== section) continue;
-    const text = spokenText(b, opts, previous);
+    const text = T.prepare(b, opts, previous);
     if (!text) continue;
     previous = b;
-    passages.push({ ...b, text, sentences: T.chunks(text, 400) });
+    passages.push(withSentences({ ...b, text }));
   }
   render();
   status(passages.length + ' passages préparés. Vérifie le texte avant l’écoute.');
@@ -81,14 +82,6 @@ function passageElement(b, i) {
     spoken.append(span, ' ');
   });
   e.append(meta, spoken);
-  if (rewriteApplied && rewriteTexts.has(b.id)) {
-    const details = document.createElement('details'), summary = document.createElement('summary'), src = document.createElement('div');
-    summary.textContent = 'Voir le texte anglais original';
-    src.className = 'source';
-    src.textContent = b.original;
-    details.append(summary, src);
-    e.append(details);
-  }
   e.onclick = () => { if (editing && i === pos.p) return; halt(); select(i, 0); };
   return e;
 }
@@ -110,18 +103,56 @@ function select(p, s) {
     span.classList.add('now');
     span.scrollIntoView({ block: 'nearest', behavior: moved ? 'smooth' : 'auto' });
   }
-  if (moved || !pages || page !== passages[p].page) showPage(passages[p].page);
+  const marks = sentenceBoxes(passages[p], s);
+  showPage(marks.length ? marks[0].page : passages[p].page, marks);
   controls();
 }
 
-function showPage(n) {
+/** Rectangles, in PDF points, covering sentence s of passage b. */
+function sentenceBoxes(b, s) {
+  const range = b.ranges && b.ranges[s];
+  if (!range || !b.spans) return [];
+  const [a, z] = range, out = [];
+  for (const [start, end, pg, x0, y0, x1, y1] of b.spans) {
+    if (end <= a || start >= z) continue;
+    const from = Math.max(0, (a - start) / (end - start)), to = Math.min(1, (z - start) / (end - start));
+    out.push({ page: pg, x0: x0 + (x1 - x0) * from, x1: x0 + (x1 - x0) * to, y0, y1 });
+  }
+  return out;
+}
+
+let shownMarks = [];
+function drawMarks() {
+  const layer = $('marks'), size = sizes[page - 1];
+  layer.replaceChildren();
+  if (!size) return;
+  const [w, h] = size;
+  for (const m of shownMarks.filter(m => m.page === page)) {
+    const d = document.createElement('div');
+    d.className = 'mark';
+    Object.assign(d.style, { left: (m.x0 / w * 100) + '%', top: (m.y0 / h * 100) + '%',
+      width: ((m.x1 - m.x0) / w * 100) + '%', height: ((m.y1 - m.y0) / h * 100) + '%' });
+    layer.append(d);
+  }
+  const first = layer.firstElementChild, viewer = layer.closest('.viewer');
+  if (first && $('pdfpage').complete) {
+    const top = first.offsetTop + $('pagebox').offsetTop;
+    if (top < viewer.scrollTop + 20 || top > viewer.scrollTop + viewer.clientHeight - 60) {
+      viewer.scrollTo({ top: Math.max(0, top - viewer.clientHeight / 3), behavior: 'smooth' });
+    }
+  }
+}
+
+function showPage(n, marks) {
   if (!pages) return;
   page = Math.max(1, Math.min(pages, n));
+  if (marks) shownMarks = marks;
   $('empty').style.display = 'none';
-  $('pdfpage').style.display = 'block';
+  $('pagebox').style.display = 'block';
   const src = '/page?n=' + page + '&token=' + encodeURIComponent(token);
   if (!$('pdfpage').src.endsWith(src)) $('pdfpage').src = src;
   $('pagenum').textContent = `${page} / ${pages}`;
+  drawMarks();
 }
 
 function controls() {
@@ -293,14 +324,14 @@ function stopEditing(save) {
   if (save) {
     const text = spoken.textContent.replace(/\s+/g, ' ').trim();
     passages[i].text = text;
-    passages[i].sentences = T.chunks(text, 400);
+    withSentences(passages[i]);
     status('Correction enregistrée pour cette session.');
   }
   e.replaceWith(passageElement(passages[i], i));
   select(i, 0);
 }
 
-/* ---------- Upload and rewrite ---------- */
+/* ---------- Upload ---------- */
 
 async function load(file) {
   if (!file) return;
@@ -314,13 +345,10 @@ async function load(file) {
     if (!res.ok) throw Error(data.error);
     raw = data.items;
     pages = data.pages;
+    sizes = data.sizes || [];
     $('notice').textContent = data.warnings.join(' ');
     $('section').replaceChildren(new Option('Toutes les sections', ''));
     [...new Set(raw.filter(b => b.kind !== 'reference').map(b => b.section))].forEach(s => $('section').append(new Option(s, s)));
-    $('cleanMode').disabled = false;
-    $('rewrite').disabled = false;
-    rewriteTexts.clear();
-    rewriteApplied = false;
     rebuild();
     status(file.name + ' · ' + pages + ' pages · ' + passages.length + ' passages');
     showPage(1);
@@ -329,47 +357,6 @@ async function load(file) {
   } finally {
     $('file').disabled = false;
     $('rebuild').disabled = !raw.length;
-  }
-}
-
-async function rewriteSection() {
-  if (!raw.length) return;
-  const selected = $('section').value;
-  if (!selected) { status('Choisis une section dans le menu avant de la reformuler.'); return; }
-  halt();
-  for (const id of ['rewrite', 'cleanMode', 'rebuild']) $(id).disabled = true;
-  const opts = options();
-  const rows = raw.filter(b => b.kind === 'text' && b.section === selected)
-    .map(b => ({ id: b.id, text: T.clean(b.original, opts) })).filter(b => b.text);
-  const fresh = new Map(rewriteTexts);
-  let done = 0, kept = 0;
-  try {
-    if (!rows.length) throw Error('Aucun passage de texte à reformuler dans cette section.');
-    for (let i = 0; i < rows.length; i += 4) {
-      status(`Reformulation de « ${selected} » : ${done} / ${rows.length} passages. Le premier lot peut prendre quelques minutes…`);
-      const res = await fetch('/rewrite', {
-        method: 'POST', headers: { 'X-Reader-Token': token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: rows.slice(i, i + 4) }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw Error(data.error || 'Erreur de reformulation.');
-      for (const x of data.items) {
-        if (x.kept_original) kept++;
-        else fresh.set(x.id, x.text);
-      }
-      done += data.items.length;
-    }
-    rewriteTexts = fresh;
-    rewriteApplied = true;
-    rebuild();
-    status(`Section « ${selected} » reformulée.` + (kept ? ` ${kept} passage(s) gardé(s) tel(s) quel(s), car la reformulation omettait du contenu.` : '') +
-      ' Compare avec l’original sous les passages avant l’écoute.');
-  } catch (e) {
-    rewriteApplied = rewriteTexts.size > 0;
-    rebuild();
-    status('Reformulation impossible : ' + e.message);
-  } finally {
-    for (const id of ['rewrite', 'cleanMode', 'rebuild']) $(id).disabled = !raw.length;
   }
 }
 
@@ -386,8 +373,7 @@ $('previous').onclick = () => move(-1, 0);
 $('next').onclick = () => move(1, 0);
 $('back').onclick = () => move(0, -1);
 $('forward').onclick = () => move(0, 1);
-$('cleanMode').onclick = () => { rewriteApplied = false; rebuild(); status('Texte anglais nettoyé prêt.'); };
-$('rewrite').onclick = rewriteSection;
+$('pdfpage').onload = drawMarks;
 $('pageprev').onclick = () => showPage(page - 1);
 $('pagenext').onclick = () => showPage(page + 1);
 $('section').onchange = rebuild;

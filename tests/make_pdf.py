@@ -6,6 +6,8 @@ import fitz
 ARTICLE = [
  ("h", "1. Introduction"),
  ("p", "Flood frequency analysis in ungauged basins remains a central problem in hydrology<sup>1,2</sup>. Regional methods transfer information from gauged sites to ungauged ones, e.g. by regression on basin descriptors (Jalbert et al., 2022; Smith and Jones, 2019). The index-flood method assumes that the flood distribution is identical across a homogeneous region, up to a scale factor."),
+ ("h3", "1.1 IDF Curves"),
+ ("p", "Intensity-duration-frequency curves summarise how rainfall intensity varies with duration and return period. They are the main design tool for urban drainage."),
  ("p", "In this study, we define the specific discharge as"),
  ("eq", "I = Q / D"),
  ("p", "where Q = discharge and D = drainage area."),
@@ -35,11 +37,12 @@ ARTICLE = [
 
 def two_column_article(repeat=1, columns=2):
     """Return an open fitz document laid out like a journal article."""
-    css = "p{font-family:serif;font-size:9.5pt;text-align:justify;margin:0 0 6pt 0;} h1{font-family:sans-serif;font-size:10pt;font-weight:bold;margin:8pt 0 4pt 0} h2{font-family:sans-serif;font-size:9.5pt;font-style:italic;font-weight:bold;margin:6pt 0 3pt 0} .eq{text-align:center;font-style:italic} .cap{font-size:8pt}"
+    css = "p{font-family:serif;font-size:9.5pt;text-align:justify;margin:0 0 6pt 0;} h1{font-family:sans-serif;font-size:10pt;font-weight:bold;margin:8pt 0 4pt 0} h2{font-family:sans-serif;font-size:9.5pt;font-style:italic;font-weight:bold;margin:6pt 0 3pt 0} .eq{text-align:center;font-style:italic} .cap{font-size:8pt} .sub{font-style:italic;margin:6pt 0 3pt 0}"
     html = []
     for k, t in ARTICLE:
         if k == "h": html.append(f"<h1>{t}</h1>")
         elif k == "h2": html.append(f"<h2>{t}</h2>")
+        elif k == "h3": html.append(f"<p class='sub'>{t}</p>")
         elif k == "eq": html.append(f"<p class='eq'>{t}</p>")
         elif k in ("fig", "tab"): html.append(f"<p class='cap'>{t}</p>")
         else: html.append(f"<p>{t}</p>")
@@ -60,4 +63,16 @@ def two_column_article(repeat=1, columns=2):
     for i, p in enumerate(doc):
         p.insert_text((54, 40), "Journal of Hydrology 612 (2022) 128123", fontsize=8)
         p.insert_text((W / 2 - 4, H - 30), str(i + 1), fontsize=8)
+    return doc
+
+
+def glued_heading_page():
+    """A plain-text subsection title sitting in the same block as its paragraph."""
+    doc = fitz.open()
+    page = doc.new_page()
+    text = ("1.1 IDF Curves\n"
+            "Intensity-duration-frequency curves summarise how rainfall intensity varies with\n"
+            "duration and return period. They are the main design tool for urban drainage and\n"
+            "are updated regularly by national agencies.")
+    page.insert_textbox(fitz.Rect(72, 72, 540, 200), text, fontsize=10, fontname="tiro")
     return doc
