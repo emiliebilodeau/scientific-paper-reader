@@ -55,3 +55,7 @@ main{padding:14px}
 .passage.equation,.passage.table,.passage.tablecell{font-style:italic;color:#44606c}
 .keys{font-size:12px;color:#647b85;margin-left:4px}
 @media (prefers-color-scheme:dark){:root{color:#d9e6ec;background:#0f1d24}.settings,.pane{background:#16262e;border-color:#27404b}.passage{border-color:#27404b}.passage.active{background:#12343a}.spoken .s:hover{background:#1d3640}.spoken .s.now{background:#6b5313;box-shadow:0 0 0 2px #6b5313}button,.upload,select{background:#1b2e37;color:#d9e6ec;border-color:#35525e}.primary{background:#007d83}.viewer{background:#0c171c}#notice{background:#2d2614;color:#e8d7a9}.panehead{border-color:#27404b}}
+
+.headactions{display:flex;gap:10px;align-items:center}
+#quit{background:transparent;color:#d6e6ee;border-color:#4d7383}
+#quit:hover{background:#1c4a5e}

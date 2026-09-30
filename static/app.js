@@ -420,4 +420,15 @@ document.addEventListener('keydown', e => {
 if (synth) { synth.onvoiceschanged = refreshVoices; refreshVoices(); }
 else status('Synthèse vocale indisponible dans ce navigateur.');
 window.addEventListener('beforeunload', halt);
+
+/* The server has no window: the page keeps it alive, and Quitter stops it. */
+function ping() { fetch('/ping', { method: 'POST', headers: { 'X-Reader-Token': token } }).catch(() => {}); }
+ping();
+setInterval(ping, 30000);
+$('quit').onclick = async () => {
+  halt();
+  try { await fetch('/quit', { method: 'POST', headers: { 'X-Reader-Token': token } }); } catch { /* already stopped */ }
+  document.querySelector('main').replaceChildren(Object.assign(document.createElement('p'), {
+    id: 'status', textContent: 'Le lecteur est arrêté. Tu peux fermer cet onglet; relance le raccourci pour lire un autre article.' }));
+};
 controls();

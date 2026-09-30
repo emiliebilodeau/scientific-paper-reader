@@ -12,6 +12,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$s.WorkingDirectory = $d;" ^
   "$s.IconLocation = (Join-Path $d 'Lecteur.ico') + ',0';" ^
   "$s.Description = 'Lecteur scientifique';" ^
+  "$s.WindowStyle = 7;" ^
   "$s.Save()"
 if errorlevel 1 goto echec
 echo Raccourci "Lecteur scientifique" cree sur le Bureau.

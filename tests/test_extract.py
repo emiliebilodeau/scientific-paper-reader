@@ -7,7 +7,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from make_pdf import ARTICLE, front_page_with_footnote, glued_heading_page, two_column_article  # noqa: E402
-from reader.extract import extract, find_gutter, join_lines, read_blocks  # noqa: E402
+from reader.extract import (_span_text, classify, extract, find_gutter, fix_accents,  # noqa: E402
+                            join_lines, join_paragraphs, read_blocks)
 
 
 def prose():
@@ -131,6 +132,39 @@ class Headings(unittest.TestCase):
         self.assertEqual([i['kind'] for i in items], ['heading', 'text'])
         self.assertEqual(items[0]['original'], '1.1 IDF Curves')
         self.assertEqual(items[1]['subsection'], '1.1 IDF Curves')
+
+
+def block(text, math=0.0, size=10):
+    return {'text': text, 'lines': [text], 'size': size, 'bold': False, 'italic': False, 'math': math}
+
+
+class Equations(unittest.TestCase):
+    """A displayed formula typeset with TeX fonts, as in Jalbert et al. (2017), p. 2."""
+
+    def test_math_font_pieces_are_equations(self):
+        for piece, math in [('σ', 1), ('+', 1), ('if ξ ̸=0,', .5), ('exp − 1+ξ z−μ', .6), ('(1)', 0)]:
+            kind = classify(piece, block(piece, math), 10)[0]
+            self.assertIn(kind, ('equation', 'tablecell') if piece == '(1)' else ('equation',), piece)
+        prose = 'where a+ denotes max{0, a} and where μ, σ > 0 and ξ are the location, scale and shape.'
+        self.assertEqual(classify(prose, block(prose, .1), 10)[0], 'text')
+
+    def test_pieces_of_one_display_become_one_equation(self):
+        def item(i, kind, text):
+            return {'id': i, 'page': 2, 'kind': kind, 'section': 'Intro', 'size': 10,
+                    'original': text, 'rows': [(text, (0, i, 10, i + 5), 2)]}
+        items = join_paragraphs([item(0, 'text', 'its cumulative distribution function is'),
+                                 item(1, 'equation', 'exp − 1+ξ z−μ'), item(2, 'equation', 'σ'),
+                                 item(3, 'equation', '+'), item(4, 'equation', 'if ξ ̸=0,'),
+                                 item(5, 'text', 'where a+ denotes max{0, a}.')])
+        self.assertEqual([i['kind'] for i in items], ['text', 'equation', 'text'])
+        self.assertEqual(items[0]['original'], 'its cumulative distribution function is')
+
+    def test_tex_glyphs(self):
+        self.assertEqual(_span_text({'font': 'CMEX10', 'text': '\x05⎧'}), '')
+        self.assertEqual(_span_text({'font': 'MTMINEW', 'text': '.z/'}), '(z)')
+        self.assertEqual(_span_text({'font': 'MTMINEW', 'text': '1=T'}), '1/T')
+        self.assertEqual(_span_text({'font': 'TimesNRMT', 'text': 'a.b/c'}), 'a.b/c')
+        self.assertEqual(fix_accents('Universit´e Qu´ebec Fran¸cois'), 'Université Québec François')
 
 
 class Lines(unittest.TestCase):

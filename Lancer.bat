@@ -23,6 +23,13 @@ if errorlevel 1 (
   .venv\Scripts\python.exe -m pip install -r requirements.txt
   if errorlevel 1 goto failure
 )
+rem Sans fenetre noire : pythonw.exe. Pour arreter, bouton Quitter dans la page
+rem (le lecteur s'arrete aussi seul quand la page est fermee depuis 10 minutes).
+rem Lancer.bat console : garde la fenetre et affiche les messages d'erreur.
+if /i "%~1"=="console" goto console
+start "" ".venv\Scripts\pythonw.exe" app.py
+exit /b 0
+:console
 .venv\Scripts\python.exe app.py
 if errorlevel 1 goto failure
 exit /b 0
