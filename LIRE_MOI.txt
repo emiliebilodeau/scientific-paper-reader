@@ -1,4 +1,4 @@
-LECTEUR SCIENTIFIQUE — Version 2.1
+LECTEUR SCIENTIFIQUE — Version 3.0
 
 INSTALLATION WINDOWS
 1. Extraire tout le ZIP dans un dossier (ne pas lancer depuis le ZIP).
@@ -21,13 +21,21 @@ UTILISATION
   Le modèle fait environ 3,4 Go. Attendre la fin du téléchargement, puis revenir
   au lecteur et choisir « Reformuler en anglais ». Ollama doit rester ouvert.
 - La reformulation est générée par petits lots dans la section choisie. Le
-  premier lot peut être lent; les suivants sont souvent plus rapides.
+  premier lot peut être lent; les suivants sont souvent plus rapides. Une
+  reformulation nettement plus courte que l'original, ou qui perd un chiffre,
+  est rejetée : le passage original est alors gardé.
 - Le texte original reste visible sous chaque passage reformulé. Comparer les
   deux, surtout les termes, les chiffres et les nuances scientifiques, avant
   l'écoute. Le modèle peut modifier ou omettre une nuance malgré les consignes.
 - « Texte nettoyé » revient au texte extrait sans reformulation.
-- Choisir une section ou cliquer sur un passage pour démarrer à cet endroit.
-- Lire, Pause/Reprendre, Arrêter et Passage permettent la navigation.
+- La phrase en cours de lecture est surlignée. Cliquer sur une phrase pour
+  reprendre la lecture à cet endroit.
+- Lire/Pause, Arrêter, Phrase et Passage permettent la navigation. Raccourcis :
+  Espace = lire/pause, flèches gauche/droite = phrase, Maj + flèches = passage.
+  Reprendre après une pause relit la phrase en cours depuis son début.
+- Si le navigateur saute une phrase sans la prononcer (défaut connu de Chrome et
+  Edge), le lecteur la redit automatiquement au lieu de passer à la suivante.
+- La voix, la vitesse et les réglages sont mémorisés dans le navigateur.
 - Corriger le passage, puis Enregistrer la correction, modifie le texte lu.
 - Exporter le texte sauvegarde un fichier TXT. Les corrections restent seulement
   dans la session; Repréparer les efface, mais conserve la reformulation.
@@ -41,8 +49,10 @@ PORTÉE ET LIMITES
 - Les titres de section numérotés sont reconnus par leur police et leur mise en
   forme. Des symboles mathématiques simples en ligne, comme I = Q/D, sont
   prononcés « I equals Q divided by D » pour éviter les coupures de voix.
-- L'ordre des colonnes est estimé automatiquement et peut échouer sur une mise
-  en page atypique. Vérifier les passages dans le panneau de texte.
+- L'ordre des colonnes est estimé à partir de l'espace vide entre les colonnes.
+  Les paragraphes coupés par un changement de colonne ou de page sont recollés.
+  Une mise en page atypique (trois colonnes, encadrés) peut encore mal s'ordonner;
+  vérifier les passages dans le panneau de texte.
 - La reformulation s'applique au texte de prose en anglais. Les titres, équations,
   légendes, tableaux et éléments graphiques ne sont pas réécrits. Les citations
   reconnues sont retirées avant l'envoi au modèle. Les références non reconnues
@@ -81,9 +91,15 @@ s'applique séparément; consulter https://pymupdf.readthedocs.io/en/latest/abou
 avant de redistribuer l'application dans un autre contexte.
 
 VALIDATION
-Le PDF Jalbert et al. (2022) a servi à vérifier la détection des sections,
-l’extraction de l’introduction et la continuité du texte après I = Q/D. Un bug
-de découpage des phrases avec l’abréviation « e.g. » a été reproduit puis corrigé.
-La chaîne de lecture a été vérifiée avec une voix simulée; aucun essai audio réel,
-modèle Ollama réel ou Windows réalisé ici. Extraction aussi vérifiée sur un PDF
-synthétique à deux colonnes, avec en-têtes/pieds, équations, légendes et références.
+Version 3.0 : la version 2.1 sautait des parties entières du texte sur les
+articles à deux colonnes. La colonne de gauche et celle de droite étaient
+mélangées; dès que le titre « References » apparaissait dans la colonne de
+droite, tout le texte de gauche situé plus bas était traité comme bibliographie
+et ignoré. Des lignes comme « where Q = discharge and D = drainage area » étaient
+aussi prises pour des équations et remplacées par une annonce.
+Tests automatiques (dossier tests) : PDF synthétiques à une et deux colonnes,
+sur une et plusieurs pages, avec en-têtes, numéros de page, appels de citation en
+exposant, équations, légendes et références. Chaque paragraphe doit ressortir en
+entier et dans l'ordre. La lecture a été vérifiée dans Chromium avec une voix
+simulée qui saute volontairement des phrases; aucune phrase n'a été perdue.
+Aucun essai audio réel, modèle Ollama réel ou Windows réalisé ici.
