@@ -6,7 +6,7 @@ const T = window.TextPrep;
 const token = document.querySelector('meta[name=reader-token]').content;
 const synth = window.speechSynthesis;
 
-let raw = [], passages = [], rewriteTexts = new Map(), rewriteApplied = false;
+let raw = [], passages = [];
 let pos = { p: 0, s: 0 };          // passage index, sentence index
 let page = 1, pages = 0, voices = [], editing = false;
 let running = false, paused = false, generation = 0, current = null, watchdog = null;
@@ -28,11 +28,6 @@ function options() {
 
 /* ---------- Building passages ---------- */
 
-function spokenText(b, opts, previous) {
-  if (rewriteApplied && rewriteTexts.has(b.id) && b.kind === 'text') return T.clean(rewriteTexts.get(b.id), opts);
-  return T.prepare(b, opts, previous);
-}
-
 function rebuild() {
   halt();
   const opts = options(), section = $('section').value;
@@ -40,7 +35,7 @@ function rebuild() {
   passages = [];
   for (const b of raw) {
     if (section && b.section !== section) continue;
-    const text = spokenText(b, opts, previous);
+    const text = T.prepare(b, opts, previous);
     if (!text) continue;
     previous = b;
     passages.push({ ...b, text, sentences: T.chunks(text, 400) });
@@ -81,14 +76,6 @@ function passageElement(b, i) {
     spoken.append(span, ' ');
   });
   e.append(meta, spoken);
-  if (rewriteApplied && rewriteTexts.has(b.id)) {
-    const details = document.createElement('details'), summary = document.createElement('summary'), src = document.createElement('div');
-    summary.textContent = 'Voir le texte anglais original';
-    src.className = 'source';
-    src.textContent = b.original;
-    details.append(summary, src);
-    e.append(details);
-  }
   e.onclick = () => { if (editing && i === pos.p) return; halt(); select(i, 0); };
   return e;
 }
@@ -300,7 +287,7 @@ function stopEditing(save) {
   select(i, 0);
 }
 
-/* ---------- Upload and rewrite ---------- */
+/* ---------- Upload ---------- */
 
 async function load(file) {
   if (!file) return;
@@ -317,10 +304,6 @@ async function load(file) {
     $('notice').textContent = data.warnings.join(' ');
     $('section').replaceChildren(new Option('Toutes les sections', ''));
     [...new Set(raw.filter(b => b.kind !== 'reference').map(b => b.section))].forEach(s => $('section').append(new Option(s, s)));
-    $('cleanMode').disabled = false;
-    $('rewrite').disabled = false;
-    rewriteTexts.clear();
-    rewriteApplied = false;
     rebuild();
     status(file.name + ' · ' + pages + ' pages · ' + passages.length + ' passages');
     showPage(1);
@@ -329,47 +312,6 @@ async function load(file) {
   } finally {
     $('file').disabled = false;
     $('rebuild').disabled = !raw.length;
-  }
-}
-
-async function rewriteSection() {
-  if (!raw.length) return;
-  const selected = $('section').value;
-  if (!selected) { status('Choisis une section dans le menu avant de la reformuler.'); return; }
-  halt();
-  for (const id of ['rewrite', 'cleanMode', 'rebuild']) $(id).disabled = true;
-  const opts = options();
-  const rows = raw.filter(b => b.kind === 'text' && b.section === selected)
-    .map(b => ({ id: b.id, text: T.clean(b.original, opts) })).filter(b => b.text);
-  const fresh = new Map(rewriteTexts);
-  let done = 0, kept = 0;
-  try {
-    if (!rows.length) throw Error('Aucun passage de texte à reformuler dans cette section.');
-    for (let i = 0; i < rows.length; i += 4) {
-      status(`Reformulation de « ${selected} » : ${done} / ${rows.length} passages. Le premier lot peut prendre quelques minutes…`);
-      const res = await fetch('/rewrite', {
-        method: 'POST', headers: { 'X-Reader-Token': token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: rows.slice(i, i + 4) }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw Error(data.error || 'Erreur de reformulation.');
-      for (const x of data.items) {
-        if (x.kept_original) kept++;
-        else fresh.set(x.id, x.text);
-      }
-      done += data.items.length;
-    }
-    rewriteTexts = fresh;
-    rewriteApplied = true;
-    rebuild();
-    status(`Section « ${selected} » reformulée.` + (kept ? ` ${kept} passage(s) gardé(s) tel(s) quel(s), car la reformulation omettait du contenu.` : '') +
-      ' Compare avec l’original sous les passages avant l’écoute.');
-  } catch (e) {
-    rewriteApplied = rewriteTexts.size > 0;
-    rebuild();
-    status('Reformulation impossible : ' + e.message);
-  } finally {
-    for (const id of ['rewrite', 'cleanMode', 'rebuild']) $(id).disabled = !raw.length;
   }
 }
 
@@ -386,8 +328,6 @@ $('previous').onclick = () => move(-1, 0);
 $('next').onclick = () => move(1, 0);
 $('back').onclick = () => move(0, -1);
 $('forward').onclick = () => move(0, 1);
-$('cleanMode').onclick = () => { rewriteApplied = false; rebuild(); status('Texte anglais nettoyé prêt.'); };
-$('rewrite').onclick = rewriteSection;
 $('pageprev').onclick = () => showPage(page - 1);
 $('pagenext').onclick = () => showPage(page + 1);
 $('section').onchange = rebuild;

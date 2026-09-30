@@ -10,7 +10,6 @@ from urllib.parse import parse_qs, urlparse
 import fitz
 
 from .extract import extract
-from .rewrite import rewrite_passages
 
 STATIC = Path(__file__).resolve().parent.parent / 'static'
 FILES = {'/app.js': 'text/javascript', '/textprep.js': 'text/javascript', '/style.css': 'text/css'}
@@ -67,16 +66,13 @@ class Handler(BaseHTTPRequestHandler):
         global PDF
         if not self.allowed() or self.headers.get('X-Reader-Token') != TOKEN:
             return self.send(403, {'error': 'Accès refusé.'})
-        if self.path not in ('/upload', '/rewrite'):
+        if self.path != '/upload':
             return self.send(404, {'error': 'Introuvable.'})
         try:
             size = int(self.headers.get('Content-Length', '0'))
-            limit = 60 * 1024 * 1024 if self.path == '/upload' else 256 * 1024
-            if not 0 < size <= limit:
+            if not 0 < size <= 60 * 1024 * 1024:
                 raise ValueError('Fichier ou lot trop volumineux.')
             data = self.rfile.read(size)
-            if self.path == '/rewrite':
-                return self.send(200, {'items': rewrite_passages(json.loads(data).get('items'))})
             if not data.startswith(b'%PDF-'):
                 raise ValueError('Choisir un fichier PDF valide.')
             candidate = fitz.open(stream=data, filetype='pdf')

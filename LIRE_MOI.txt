@@ -1,4 +1,4 @@
-LECTEUR SCIENTIFIQUE — Version 3.0
+LECTEUR SCIENTIFIQUE — Version 3.1
 
 INSTALLATION WINDOWS
 1. Extraire tout le ZIP dans un dossier (ne pas lancer depuis le ZIP).
@@ -12,22 +12,8 @@ INSTALLATION WINDOWS
 
 UTILISATION
 - Ouvrir ou glisser un PDF avec texte sélectionnable.
-- Le mode « Texte nettoyé » lit l'anglais extrait du PDF, en filtrant les
-  citations, la bibliographie reconnue et les en-têtes/pieds récurrents.
-- Pour une reformulation, choisir une section dans le menu (Introduction, etc.),
-  puis cliquer « Reformuler cette section ». Les sections se font une à la fois.
-  Installer Ollama depuis https://ollama.com/download/windows, puis ouvrir son
-  application et exécuter une fois : ollama run qwen3.5:4b
-  Le modèle fait environ 3,4 Go. Attendre la fin du téléchargement, puis revenir
-  au lecteur et choisir « Reformuler en anglais ». Ollama doit rester ouvert.
-- La reformulation est générée par petits lots dans la section choisie. Le
-  premier lot peut être lent; les suivants sont souvent plus rapides. Une
-  reformulation nettement plus courte que l'original, ou qui perd un chiffre,
-  est rejetée : le passage original est alors gardé.
-- Le texte original reste visible sous chaque passage reformulé. Comparer les
-  deux, surtout les termes, les chiffres et les nuances scientifiques, avant
-  l'écoute. Le modèle peut modifier ou omettre une nuance malgré les consignes.
-- « Texte nettoyé » revient au texte extrait sans reformulation.
+- Le texte extrait du PDF est lu en anglais, en filtrant les citations, la
+  bibliographie reconnue et les en-têtes/pieds récurrents (voir les réglages).
 - La phrase en cours de lecture est surlignée. Cliquer sur une phrase pour
   reprendre la lecture à cet endroit.
 - Lire/Pause, Arrêter, Phrase et Passage permettent la navigation. Raccourcis :
@@ -38,12 +24,12 @@ UTILISATION
 - La voix, la vitesse et les réglages sont mémorisés dans le navigateur.
 - Corriger le passage, puis Enregistrer la correction, modifie le texte lu.
 - Exporter le texte sauvegarde un fichier TXT. Les corrections restent seulement
-  dans la session; Repréparer les efface, mais conserve la reformulation.
+  dans la session; Repréparer les efface.
 - La page originale s'affiche pendant la lecture. Les flèches de page permettent
   d'examiner les figures sans changer le passage sélectionné.
 
 PORTÉE ET LIMITES
-- Le mode nettoyé ne réécrit pas le contenu scientifique. Il extrait le texte,
+- Le lecteur ne réécrit pas le contenu scientifique. Il extrait le texte,
   filtre certaines citations [n], DOI et URL, et retire les en-têtes/pieds
   récurrents selon leur emplacement. Le filtrage n'est pas parfait.
 - Les titres de section numérotés sont reconnus par leur police et leur mise en
@@ -53,14 +39,8 @@ PORTÉE ET LIMITES
   Les paragraphes coupés par un changement de colonne ou de page sont recollés.
   Une mise en page atypique (trois colonnes, encadrés) peut encore mal s'ordonner;
   vérifier les passages dans le panneau de texte.
-- La reformulation s'applique au texte de prose en anglais. Les titres, équations,
-  légendes, tableaux et éléments graphiques ne sont pas réécrits. Les citations
-  reconnues sont retirées avant l'envoi au modèle. Les références non reconnues
-  peuvent rester.
-- Le modèle local reçoit seulement les passages de texte à reformuler. Le PDF
-  reste dans le lecteur local; aucun service distant de reformulation n'est
-  utilisé par l'application. Python n'a besoin d'Internet que pour installer
-  PyMuPDF; Ollama télécharge le modèle lors de sa première commande.
+- Aucun service distant n'est utilisé par l'application. Python n'a besoin
+  d'Internet que pour installer PyMuPDF.
 - Les PDF numérisés nécessitent un OCR préalable. Figures non décrites; contenu
   des tableaux non reconstruit; formules complexes à vérifier.
 - PDF chiffré : fournir une copie sans mot de passe. Limites : 60 Mo / 500 pages.
@@ -69,13 +49,9 @@ VOIX ET CONFIDENTIALITÉ
 Le PDF et le texte extrait restent sur l'ordinateur. Les voix dépendent du
 navigateur et des voix installées. Choisir une voix marquée « locale » pour
 éviter une voix distante; une voix « en ligne » peut transmettre le texte au
-fournisseur vocal. La reformulation locale peut changer le sens ou omettre des
-nuances scientifiques; comparer les passages avec le texte anglais original.
+fournisseur vocal.
 
 DÉPANNAGE
-- Ollama ou le modèle manque : ouvrir Ollama, puis exécuter
-  « ollama run qwen3.5:4b » dans Terminal/Invite de commandes et attendre le
-  téléchargement. Relancer ensuite « Reformuler en anglais ».
 - Aucune voix : ouvrir l'adresse affichée dans la fenêtre noire avec Edge;
   installer une voix anglaise dans les paramètres Windows au besoin.
 - Mauvais ordre : corriger les passages ou écouter des sections séparément.
@@ -91,7 +67,7 @@ s'applique séparément; consulter https://pymupdf.readthedocs.io/en/latest/abou
 avant de redistribuer l'application dans un autre contexte.
 
 VALIDATION
-Version 3.0 : la version 2.1 sautait des parties entières du texte sur les
+Version 3.1 : la version 2.1 sautait des parties entières du texte sur les
 articles à deux colonnes. La colonne de gauche et celle de droite étaient
 mélangées; dès que le titre « References » apparaissait dans la colonne de
 droite, tout le texte de gauche situé plus bas était traité comme bibliographie
@@ -102,4 +78,6 @@ sur une et plusieurs pages, avec en-têtes, numéros de page, appels de citation
 exposant, équations, légendes et références. Chaque paragraphe doit ressortir en
 entier et dans l'ordre. La lecture a été vérifiée dans Chromium avec une voix
 simulée qui saute volontairement des phrases; aucune phrase n'a été perdue.
-Aucun essai audio réel, modèle Ollama réel ou Windows réalisé ici.
+Aucun essai audio réel ou Windows réalisé ici.
+Version 3.1 : retrait des boutons « Texte nettoyé » et « Reformuler cette
+section » (reformulation avec Ollama), jugés inutiles à l'usage.
