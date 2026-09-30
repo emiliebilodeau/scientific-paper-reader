@@ -1,0 +1,98 @@
+<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lecteur scientifique</title>
+<style>
+:root{font-family:Segoe UI,Arial,sans-serif;color:#193344;background:#eef3f5}*{box-sizing:border-box}body{margin:0}header{background:#123849;color:white;padding:24px 32px;display:flex;align-items:center;justify-content:space-between;gap:20px}h1{font-size:25px;margin:0 0 6px}header p{margin:0;color:#b8d3df}button,.upload{border:1px solid #b8cbd3;background:white;color:#193344;border-radius:8px;padding:10px 15px;font:inherit;cursor:pointer}button:hover,.upload:hover{background:#e7f4f4}button:disabled{opacity:.45;cursor:default}.primary{background:#007d83;border-color:#007d83;color:white}.primary:hover{background:#00666b}.upload{white-space:nowrap;background:#daf1ef}input[type=file]{display:none}main{padding:20px 28px;max-width:1800px;margin:auto}.settings{display:flex;gap:16px;flex-wrap:wrap;background:white;padding:16px;border-radius:12px;margin-bottom:12px}.settings label{font-size:13px;display:flex;flex-direction:column;gap:6px}select{padding:8px;border:1px solid #b8cbd3;border-radius:6px;background:white;font:inherit;max-width:280px}.check{justify-content:center}.check span{font-size:14px}.toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:14px 0}.toolbar output{margin-left:auto;font-size:14px}#notice{font-size:13px;line-height:1.5;color:#62522e;background:#fff7e5;padding:12px;border-radius:8px}#status{font-size:14px;min-height:22px;margin:10px 0}.panes{display:grid;grid-template-columns:1fr 1fr;gap:18px}.pane{background:white;border:1px solid #d8e2e7;border-radius:12px;overflow:hidden}.panehead{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #e3e9ed;font-size:14px;font-weight:600}.panehead select{max-width:210px}.viewer{position:relative;height:65vh;overflow:auto;background:#dce5e9;padding:14px;text-align:center}#pdfpage{width:100%;display:none}#empty{padding:100px 25px;color:#526c78}.reading{height:65vh;overflow:auto;padding:16px}.passage{padding:12px 14px;margin-bottom:10px;border:1px solid #e0e8eb;border-left:4px solid #c4d9de;border-radius:6px;cursor:pointer;line-height:1.65;white-space:pre-wrap}.passage.active{border-left-color:#00838a;background:#e7f7f5}.passage.heading{font-weight:bold}.meta{font-size:11px;line-height:1.2;color:#607985;display:block;margin-bottom:7px}.passage[contenteditable=true]{outline:2px solid #007d83;cursor:text}.source{font-size:13px;color:#536b75;padding:8px 4px}details summary{font-size:12px;color:#007d83;cursor:pointer;margin-top:8px}footer{padding:16px 0;font-size:12px;color:#647b85}#edithelp{font-size:12px;color:#647b85;padding:0 16px 12px}button:focus-visible,.upload:focus-visible,select:focus-visible{outline:3px solid #f0bc48} @media(max-width:850px){header{padding:20px;flex-wrap:wrap}main{padding:14px}.panes{grid-template-columns:1fr}.viewer,.reading{height:48vh}.settings{gap:12px}}
+</style>
+<header><div><h1>Lecteur scientifique</h1><p>Ton article, préparé pour l’écoute.</p></div><label class="upload" tabindex="0" id="drop">Ouvrir un PDF<input id="file" type="file" accept="application/pdf,.pdf"></label></header>
+<main><div class="settings">
+<label>Langue de lecture<select id="lang" disabled><option value="en">Anglais (original)</option></select></label>
+<label>Voix<select id="voice"><option>Chargement des voix…</option></select></label>
+<label>Vitesse <span><input id="rate" type="range" min="0.6" max="1.8" step="0.1" value="1"><output id="ratevalue">1,0×</output></span></label>
+<label>Équations détectées<select id="equations"><option value="announce">Signaler leur présence</option><option value="read">Lecture des symboles simples</option><option value="skip">Ignorer</option></select></label>
+<label>Légendes de figures<select id="figures"><option value="read">Lire</option><option value="skip">Ignorer</option></select></label>
+<label>Tableaux détectés<select id="tables"><option value="announce">Signaler leur présence</option><option value="read">Lire le texte extrait</option><option value="skip">Ignorer</option></select></label>
+<label class="check"><span><input type="checkbox" id="citations" checked>Ignorer citations auteur–année et [n]</span><span><input type="checkbox" id="bibliography" checked>Ignorer la bibliographie</span></label>
+</div>
+<div id="notice">Importe un PDF avec du texte sélectionnable. Glisser-déposer accepté. Le texte reste éditable avant la lecture. Les PDF numérisés nécessitent un OCR préalable.</div>
+<div class="toolbar"><button id="cleanMode" disabled>Texte nettoyé</button><button id="rewrite" disabled>Reformuler cette section</button><button class="primary" id="play" disabled>▶ Lire</button><button id="pause" disabled>Pause</button><button id="stop" disabled>Arrêter</button><button id="previous" disabled>← Passage</button><button id="next" disabled>Passage →</button><button id="edit" disabled>Corriger le passage</button><button id="export" disabled>Exporter le texte</button><output id="progress">Aucun article</output></div>
+<div id="status" role="status" aria-live="polite"></div>
+<div class="panes"><section class="pane"><div class="panehead">Article original <button id="pageprev" aria-label="Page précédente">←</button><span id="pagenum">—</span><button id="pagenext" aria-label="Page suivante">→</button></div><div class="viewer"><div id="empty">Le PDF apparaîtra ici.<br>Les figures et les équations restent visibles.</div><img id="pdfpage" alt="Page de l’article"></div></section>
+<section class="pane"><div class="panehead">Texte pour l’écoute<select id="section"><option value="">Toutes les sections</option></select><button id="rebuild" disabled>Repréparer</button></div><div id="reading" class="reading"><p>Choisis un article pour préparer sa lecture.</p></div><div id="edithelp">Choisis une section dans le menu avant de cliquer « Reformuler cette section ». Les sections déjà reformulées restent en mémoire. Cliquer sur un passage pour le sélectionner. « Corriger » permet de modifier ce qui sera prononcé. Le texte original reste consultable sous chaque passage reformulé.</div></section></div>
+<footer>Version 2.1 · Deux modes : texte anglais nettoyé, ou reformulation locale section par section avec Ollama et Qwen 3.5 4B (téléchargement d’environ 3,4 Go). Le PDF et le texte ne quittent pas l’ordinateur. Les voix marquées « en ligne » peuvent transmettre le texte lu au fournisseur vocal; choisir une voix locale pour garder aussi la lecture sur l’appareil. Les figures restent dans le PDF et ne sont pas décrites. © 2026 Émilie Bilodeau.</footer></main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id), token='__TOKEN__', synth=window.speechSynthesis;
+let raw=[], passages=[], rewriteTexts=new Map(), rewriteApplied=false, index=0, page=1, pages=0, voices=[], running=false, paused=false, generation=0, editing=false, utterance=null;
+function status(t){$('status').textContent=t}
+function message(fr,en){return en}
+function clean(t){
+ t=t.replace(/[ﬁﬂﬀﬃﬄ]/g,c=>({'ﬁ':'fi','ﬂ':'fl','ﬀ':'ff','ﬃ':'ffi','ﬄ':'ffl'}[c]));
+ t=t.replace(/([A-Za-zÀ-ÿ])-\s*\n\s*([a-zà-ÿ])/g,'$1$2').replace(/\s+/g,' ').trim();
+ if($('citations').checked){
+  t=t.replace(/\[(?:\d+\s*(?:[,;–-]\s*\d+\s*)*)\]/g,'');
+  t=t.replace(/\(([^()]*)\)/g,(whole,inside)=> /(?:\b(?:18|19|20)\d{2}[a-z]?\b)/.test(inside)&& /[A-Za-zÀ-ÿ]{3}/.test(inside)&& /(?:et al\.|[A-ZÀ-Ý][a-zà-ÿ]+\s*,\s*(?:18|19|20)\d{2})/.test(inside)?'':whole);
+ }
+ t=t.replace(/https?:\/\/[^\s]+/g,'').replace(/\b(?:doi:\s*)?10\.\d{4,9}\/[^\s]+/gi,'');
+ t=t.replace(/\b([A-Za-z])\s*=\s*([A-Za-z0-9]+)\s*\/\s*([A-Za-z0-9]+)\b/g,'$1 equals $2 divided by $3');
+ t=t.replace(/\b([A-Za-z])\s*=\s*([0-9]+(?:\.[0-9]+)?)(?=\b)/g,'$1 equals $2');
+ return t.replace(/\s+([,.;:])/g,'$1').replace(/\s{2,}/g,' ').trim();
+}
+function speechParts(value,max=200){
+ let remaining=value.replace(/\s+/g,' ').trim(),parts=[];
+ while(remaining.length>max){
+  let cut=-1;
+  for(const mark of ['. ','? ','! ','; ',': '])cut=Math.max(cut,remaining.lastIndexOf(mark,max));
+  if(cut>=Math.floor(max*.6))cut+=1;
+  else{cut=remaining.lastIndexOf(' ',max);if(cut<1)cut=max}
+  parts.push(remaining.slice(0,cut).trim());remaining=remaining.slice(cut).trim();
+ }
+ if(remaining)parts.push(remaining);
+ return parts;
+}
+function prepare(b){
+ if(b.kind==='reference'&&$('bibliography').checked)return '';
+ if(b.kind==='figure'&&$('figures').value==='skip')return '';
+ if(b.kind==='table'){
+  if($('tables').value==='skip')return '';
+  if($('tables').value==='announce')return message('Un tableau est présenté ici. Consulter la page '+b.page+'.','A table is presented here. See page '+b.page+'.');
+ }
+ if(b.kind==='equation'){
+  if($('equations').value==='skip')return '';
+  if($('equations').value==='announce')return message('Une équation est présentée ici. Consulter la page '+b.page+'.','An equation is presented here. See page '+b.page+'.');
+  const symbols={'=':' equals ','×':' times ','÷':' divided by ','+':' plus ','−':' minus ','α':' alpha ','β':' beta ','∑':' sum ','√':' square root ','≤':' less than or equal to ','≥':' greater than or equal to '};
+  return clean(b.original).replace(/[=×÷+−αβ∑√≤≥]/g,c=>symbols[c]);
+ }
+ return clean(b.original);
+}
+function halt(){generation++;running=false;paused=false;if(synth){synth.cancel();synth.resume()}$('pause').textContent='Pause';editing=false;document.querySelectorAll('[contenteditable=true]').forEach(e=>e.contentEditable='false');$('edit').textContent='Corriger le passage';controls()}
+function controls(){const ok=passages.length>0;for(const id of ['play','pause','stop','previous','next','edit','export'])$(id).disabled=!ok; $('pause').disabled=!running;$('play').disabled=!ok||!synth; $('progress').textContent=ok?`${index+1} / ${passages.length} passages`:'Aucun passage';}
+function showPage(n){if(!pages)return;page=Math.max(1,Math.min(pages,n));$('empty').style.display='none';$('pdfpage').style.display='block';$('pdfpage').src='/page?n='+page+'&token='+encodeURIComponent(token);$('pagenum').textContent=`${page} / ${pages}`}
+function select(n){index=Math.max(0,Math.min(passages.length-1,n));document.querySelectorAll('.passage').forEach((e,i)=>e.classList.toggle('active',i===index));const e=$('b'+index);if(e)e.scrollIntoView({block:'nearest',behavior:'smooth'});if(passages[index])showPage(passages[index].page);controls()}
+function render(){const box=$('reading');box.replaceChildren();passages.forEach((b,i)=>{const e=document.createElement('div');e.id='b'+i;e.className='passage '+b.kind;e.tabIndex=0;const meta=document.createElement('span');meta.className='meta';meta.textContent=`Page ${b.page} · ${b.section}`;const t=document.createElement('div');t.className='spoken';t.textContent=b.text;e.append(meta,t);if(rewriteApplied&&rewriteTexts.has(b.id)){const details=document.createElement('details'),summary=document.createElement('summary'),src=document.createElement('div');summary.textContent='Voir le texte anglais original';src.className='source';src.textContent=b.original;details.append(summary,src);e.append(details)}e.onclick=()=>{if(editing&&i===index)return;halt();select(i)};e.onkeydown=ev=>{if(ev.key==='Enter'&&!editing){halt();select(i)}};box.append(e)});select(0)}
+function prepareBlock(b){if(!rewriteApplied||!rewriteTexts.has(b.id)||b.kind!=='text')return prepare(b);return clean(rewriteTexts.get(b.id))}
+function rebuild(){halt();passages=raw.filter(b=>!$('section').value||b.section===$('section').value).map(b=>({...b,text:prepareBlock(b)})).filter(b=>b.text);render();status(passages.length+' passages préparés. Vérifie le texte avant l’écoute.')}
+function refreshVoices(){if(!synth){status('Synthèse vocale indisponible. Utiliser Microsoft Edge ou Chrome.');return}const old=$('voice').value;voices=synth.getVoices().filter(v=>v.lang.toLowerCase().startsWith('en'));$('voice').replaceChildren();voices.forEach((v,i)=>{const o=document.createElement('option');o.value=v.voiceURI;o.textContent=v.name+' · '+v.lang+(v.localService?' · locale':' · en ligne');$('voice').append(o)});if(voices.some(v=>v.voiceURI===old))$('voice').value=old;if(!voices.length){const o=document.createElement('option');o.value='';o.textContent='Voix par défaut du navigateur';$('voice').append(o)}}
+function speak(){
+ if(!passages[index]||!synth){halt();return}
+ const mine=generation;running=true;paused=false;controls();
+ // Short utterances avoid long-paragraph browser cutoffs.
+ const parts=speechParts(passages[index].text);
+ let j=0;
+ function part(){if(mine!==generation)return;if(j>=parts.length){if(index+1<passages.length){setTimeout(()=>{if(mine===generation){select(index+1);speak()}},100)}else{halt();status('Lecture terminée.')}return}
+  utterance=new SpeechSynthesisUtterance(parts[j++]);utterance.lang='en-US';utterance.voice=voices.find(v=>v.voiceURI===$('voice').value)||null;utterance.rate=Number($('rate').value);
+  // A brief gap helps Windows/Chromium release each short utterance before the next begins.
+  utterance.onend=()=>setTimeout(part,100);utterance.onerror=e=>{if(mine!==generation)return;halt();status('Lecture interrompue ('+e.error+'). Essaie une autre voix puis Lire.')};synth.speak(utterance);
+ }
+ status('Lecture en cours…');part();
+}
+async function load(file){if(!file)return;halt();status('Analyse du PDF…');$('file').disabled=true;$('rebuild').disabled=true;try{const res=await fetch('/upload',{method:'POST',headers:{'X-Reader-Token':token},body:file});const data=await res.json();if(!res.ok)throw Error(data.error);raw=data.items;pages=data.pages;$('notice').textContent=data.warnings.join(' ');$('section').replaceChildren(new Option('Toutes les sections',''));[...new Set(raw.filter(b=>b.kind!=='reference').map(b=>b.section))].forEach(s=>$('section').append(new Option(s,s)));$('rebuild').disabled=false;$('cleanMode').disabled=false;$('rewrite').disabled=false;rewriteTexts.clear();rewriteApplied=false;rebuild();status(file.name+' · '+pages+' pages · '+passages.length+' passages');showPage(1)}catch(e){status('Erreur : '+e.message)}finally{$('file').disabled=false;$('rebuild').disabled=!raw.length}}
+$('file').onchange=e=>load(e.target.files[0]);$('drop').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('file').click()}};
+document.ondragover=e=>e.preventDefault();document.ondrop=e=>{e.preventDefault();load(e.dataTransfer.files[0])};
+$('play').onclick=()=>{halt();speak()};$('cleanMode').onclick=()=>{halt();rewriteApplied=false;rebuild();status('Texte anglais nettoyé prêt. Les citations, références reconnues et éléments de page sont filtrés.')};$('rewrite').onclick=async()=>{if(!raw.length)return;const selected=$('section').value;if(!selected){status('Choisis une section dans le menu avant de la reformuler.');return}halt();$('rewrite').disabled=true;$('cleanMode').disabled=true;$('rebuild').disabled=true;const rows=raw.filter(b=>b.kind==='text'&&b.section===selected).map(b=>({id:b.id,text:clean(b.original)})).filter(b=>b.text);const fresh=new Map(rewriteTexts);let done=0;try{if(!rows.length)throw Error('Aucun passage de texte à reformuler dans cette section.');for(let i=0;i<rows.length;i+=8){status(`Reformulation de « ${selected} » : ${done} / ${rows.length} passages. Le premier lot peut prendre quelques minutes…`);const res=await fetch('/rewrite',{method:'POST',headers:{'X-Reader-Token':token,'Content-Type':'application/json'},body:JSON.stringify({items:rows.slice(i,i+8)})});const data=await res.json();if(!res.ok)throw Error(data.error||'Erreur de reformulation.');data.items.forEach(x=>fresh.set(x.id,x.text));done+=data.items.length}rewriteTexts=fresh;rewriteApplied=true;halt();rebuild();status(`Section « ${selected} » reformulée. Compare avec l’original sous les passages et vérifie les nuances avant l’écoute.`)}catch(e){rewriteApplied= rewriteTexts.size>0;rebuild();status('Reformulation impossible : '+e.message)}finally{$('rewrite').disabled=!raw.length;$('cleanMode').disabled=!raw.length;$('rebuild').disabled=!raw.length}};$('pause').onclick=()=>{if(!running)return;if(paused){synth.resume();paused=false;$('pause').textContent='Pause';status('Lecture en cours…')}else{synth.pause();paused=true;$('pause').textContent='Reprendre';status('Lecture en pause.')}};
+$('stop').onclick=()=>{halt();status('Lecture arrêtée. Lire reprend au début du passage sélectionné.')};$('previous').onclick=()=>{halt();select(index-1)};$('next').onclick=()=>{halt();select(index+1)};
+$('pageprev').onclick=()=>showPage(page-1);$('pagenext').onclick=()=>showPage(page+1);$('section').onchange=rebuild;$('rebuild').onclick=()=>{if(confirm('Repréparer le texte et effacer les corrections manuelles ?'))rebuild()};
+for(const id of ['equations','figures','tables','citations','bibliography'])$(id).onchange=()=>{halt();status('Réglage modifié. Cliquer sur Repréparer pour l’appliquer (efface les corrections).')};
+$('rate').oninput=()=>{$('ratevalue').textContent=Number($('rate').value).toFixed(1).replace('.',',')+'×'};
+$('edit').onclick=()=>{if(editing){const e=$('b'+index).querySelector('.spoken');passages[index].text=e.textContent.trim();e.contentEditable='false';editing=false;$('edit').textContent='Corriger le passage';status('Correction enregistrée pour cette session.')}else{halt();editing=true;const e=$('b'+index).querySelector('.spoken');e.contentEditable='true';e.focus();$('edit').textContent='Enregistrer la correction';status('Modifie le passage puis enregistre la correction.')}};
+$('export').onclick=()=>{const text=passages.map(b=>b.text).join('\n\n');const url=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='Article_pour_ecoute.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+if(synth){synth.onvoiceschanged=refreshVoices;refreshVoices()}else status('Synthèse vocale indisponible dans ce navigateur.');window.addEventListener('beforeunload',halt);
+</script></html>

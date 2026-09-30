@@ -1,0 +1,89 @@
+LECTEUR SCIENTIFIQUE — Version 2.1
+
+INSTALLATION WINDOWS
+1. Extraire tout le ZIP dans un dossier (ne pas lancer depuis le ZIP).
+2. Installer Python 3.10 ou plus si nécessaire :
+   https://www.python.org/downloads/windows/
+   Cocher « Add python.exe to PATH » pendant l'installation.
+3. Double-cliquer sur Lancer.bat. La première fois, Internet est nécessaire
+   pour installer PyMuPDF. Aucun traducteur n'est installé.
+4. L'application s'ouvre dans le navigateur. Edge ou Chrome recommandé.
+   Garder la fenêtre noire ouverte pendant l'utilisation; la fermer arrête l'app.
+
+UTILISATION
+- Ouvrir ou glisser un PDF avec texte sélectionnable.
+- Le mode « Texte nettoyé » lit l'anglais extrait du PDF, en filtrant les
+  citations, la bibliographie reconnue et les en-têtes/pieds récurrents.
+- Pour une reformulation, choisir une section dans le menu (Introduction, etc.),
+  puis cliquer « Reformuler cette section ». Les sections se font une à la fois.
+  Installer Ollama depuis https://ollama.com/download/windows, puis ouvrir son
+  application et exécuter une fois : ollama run qwen3.5:4b
+  Le modèle fait environ 3,4 Go. Attendre la fin du téléchargement, puis revenir
+  au lecteur et choisir « Reformuler en anglais ». Ollama doit rester ouvert.
+- La reformulation est générée par petits lots dans la section choisie. Le
+  premier lot peut être lent; les suivants sont souvent plus rapides.
+- Le texte original reste visible sous chaque passage reformulé. Comparer les
+  deux, surtout les termes, les chiffres et les nuances scientifiques, avant
+  l'écoute. Le modèle peut modifier ou omettre une nuance malgré les consignes.
+- « Texte nettoyé » revient au texte extrait sans reformulation.
+- Choisir une section ou cliquer sur un passage pour démarrer à cet endroit.
+- Lire, Pause/Reprendre, Arrêter et Passage permettent la navigation.
+- Corriger le passage, puis Enregistrer la correction, modifie le texte lu.
+- Exporter le texte sauvegarde un fichier TXT. Les corrections restent seulement
+  dans la session; Repréparer les efface, mais conserve la reformulation.
+- La page originale s'affiche pendant la lecture. Les flèches de page permettent
+  d'examiner les figures sans changer le passage sélectionné.
+
+PORTÉE ET LIMITES
+- Le mode nettoyé ne réécrit pas le contenu scientifique. Il extrait le texte,
+  filtre certaines citations [n], DOI et URL, et retire les en-têtes/pieds
+  récurrents selon leur emplacement. Le filtrage n'est pas parfait.
+- Les titres de section numérotés sont reconnus par leur police et leur mise en
+  forme. Des symboles mathématiques simples en ligne, comme I = Q/D, sont
+  prononcés « I equals Q divided by D » pour éviter les coupures de voix.
+- L'ordre des colonnes est estimé automatiquement et peut échouer sur une mise
+  en page atypique. Vérifier les passages dans le panneau de texte.
+- La reformulation s'applique au texte de prose en anglais. Les titres, équations,
+  légendes, tableaux et éléments graphiques ne sont pas réécrits. Les citations
+  reconnues sont retirées avant l'envoi au modèle. Les références non reconnues
+  peuvent rester.
+- Le modèle local reçoit seulement les passages de texte à reformuler. Le PDF
+  reste dans le lecteur local; aucun service distant de reformulation n'est
+  utilisé par l'application. Python n'a besoin d'Internet que pour installer
+  PyMuPDF; Ollama télécharge le modèle lors de sa première commande.
+- Les PDF numérisés nécessitent un OCR préalable. Figures non décrites; contenu
+  des tableaux non reconstruit; formules complexes à vérifier.
+- PDF chiffré : fournir une copie sans mot de passe. Limites : 60 Mo / 500 pages.
+
+VOIX ET CONFIDENTIALITÉ
+Le PDF et le texte extrait restent sur l'ordinateur. Les voix dépendent du
+navigateur et des voix installées. Choisir une voix marquée « locale » pour
+éviter une voix distante; une voix « en ligne » peut transmettre le texte au
+fournisseur vocal. La reformulation locale peut changer le sens ou omettre des
+nuances scientifiques; comparer les passages avec le texte anglais original.
+
+DÉPANNAGE
+- Ollama ou le modèle manque : ouvrir Ollama, puis exécuter
+  « ollama run qwen3.5:4b » dans Terminal/Invite de commandes et attendre le
+  téléchargement. Relancer ensuite « Reformuler en anglais ».
+- Aucune voix : ouvrir l'adresse affichée dans la fenêtre noire avec Edge;
+  installer une voix anglaise dans les paramètres Windows au besoin.
+- Mauvais ordre : corriger les passages ou écouter des sections séparément.
+- Aucun texte : effectuer un OCR du PDF avec un autre logiciel avant importation.
+- Lancement bloqué : l'archive contient un script .bat et du code Python, pas
+  un exécutable Windows signé. Les politiques Windows peuvent bloquer un script
+  téléchargé; sur un ordinateur géré, demander à la personne responsable TI.
+
+CODE ET LICENCE
+Code de l'application : © 2026 Émilie Bilodeau, usage personnel et recherche.
+PyMuPDF est une dépendance tierce sous AGPL ou licence commerciale. Sa licence
+s'applique séparément; consulter https://pymupdf.readthedocs.io/en/latest/about.html
+avant de redistribuer l'application dans un autre contexte.
+
+VALIDATION
+Le PDF Jalbert et al. (2022) a servi à vérifier la détection des sections,
+l’extraction de l’introduction et la continuité du texte après I = Q/D. Un bug
+de découpage des phrases avec l’abréviation « e.g. » a été reproduit puis corrigé.
+La chaîne de lecture a été vérifiée avec une voix simulée; aucun essai audio réel,
+modèle Ollama réel ou Windows réalisé ici. Extraction aussi vérifiée sur un PDF
+synthétique à deux colonnes, avec en-têtes/pieds, équations, légendes et références.
