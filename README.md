@@ -9,6 +9,7 @@ Guide d’utilisation complet : [LIRE_MOI.txt](LIRE_MOI.txt).
 ## Lancer
 
 - Windows : double-cliquer sur `Lancer.bat` (crée `.venv` et installe PyMuPDF la première fois).
+  `Creer_raccourci.bat` ajoute sur le Bureau un raccourci « Lecteur scientifique » avec l’icône `Lecteur.ico`.
 - Ailleurs : `python -m venv .venv`, `.venv/bin/pip install -r requirements.txt`, puis `.venv/bin/python app.py`.
 
 ## Organisation
@@ -20,6 +21,7 @@ Guide d’utilisation complet : [LIRE_MOI.txt](LIRE_MOI.txt).
 | `reader/server.py` | Serveur HTTP local (127.0.0.1 seulement, jeton de session). |
 | `static/textprep.js` | Nettoyage du texte, mots pour les symboles, découpage en phrases (partagé avec les tests). |
 | `static/app.js` | Interface et moteur de lecture (phrase surlignée, reprise si le navigateur saute une phrase). |
+| `outils/creer_icone.py` | Régénère `Lecteur.ico` (nécessite Pillow). |
 
 ## Tests
 

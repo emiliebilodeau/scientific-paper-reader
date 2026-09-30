@@ -9,6 +9,9 @@ INSTALLATION WINDOWS
    pour installer PyMuPDF. Aucun traducteur n'est installé.
 4. L'application s'ouvre dans le navigateur. Edge ou Chrome recommandé.
    Garder la fenêtre noire ouverte pendant l'utilisation; la fermer arrête l'app.
+5. Facultatif : double-cliquer sur Creer_raccourci.bat pour ajouter sur le
+   Bureau un raccourci « Lecteur scientifique » avec son icône. Il lance
+   Lancer.bat. Si le dossier est déplacé ensuite, relancer Creer_raccourci.bat.
 
 UTILISATION
 - Ouvrir ou glisser un PDF avec texte sélectionnable.
@@ -61,6 +64,8 @@ DÉPANNAGE
 - Lancement bloqué : l'archive contient un script .bat et du code Python, pas
   un exécutable Windows signé. Les politiques Windows peuvent bloquer un script
   téléchargé; sur un ordinateur géré, demander à la personne responsable TI.
+- Raccourci qui ne s'ouvre plus : le dossier du lecteur a été déplacé ou
+  renommé. Supprimer le raccourci du Bureau et relancer Creer_raccourci.bat.
 
 CODE ET LICENCE
 Code de l'application : © 2026 Émilie Bilodeau, usage personnel et recherche.
