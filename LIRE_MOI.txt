@@ -14,7 +14,8 @@ UTILISATION
 - Ouvrir ou glisser un PDF avec texte sélectionnable.
 - Le texte extrait du PDF est lu en anglais, en filtrant les citations, la
   bibliographie reconnue et les en-têtes/pieds récurrents (voir les réglages).
-- La phrase en cours de lecture est surlignée. Cliquer sur une phrase pour
+- La phrase en cours de lecture est surlignée dans le texte et aussi sur la page
+  du PDF, qui défile pour la garder visible. Cliquer sur une phrase pour
   reprendre la lecture à cet endroit.
 - Lire/Pause, Arrêter, Phrase et Passage permettent la navigation. Raccourcis :
   Espace = lire/pause, flèches gauche/droite = phrase, Maj + flèches = passage.
@@ -33,7 +34,8 @@ PORTÉE ET LIMITES
   filtre certaines citations [n], DOI et URL, et retire les en-têtes/pieds
   récurrents selon leur emplacement. Le filtrage n'est pas parfait.
 - Les titres de section numérotés sont reconnus par leur police et leur mise en
-  forme. Des symboles mathématiques simples en ligne, comme I = Q/D, sont
+  forme. Les sous-titres comme « 1.1 IDF Curves » sont reconnus même en
+  caractères normaux ou collés au paragraphe qui les suit. Des symboles mathématiques simples en ligne, comme I = Q/D, sont
   prononcés « I equals Q divided by D » pour éviter les coupures de voix.
 - L'ordre des colonnes est estimé à partir de l'espace vide entre les colonnes.
   Les paragraphes coupés par un changement de colonne ou de page sont recollés.
@@ -80,4 +82,6 @@ entier et dans l'ordre. La lecture a été vérifiée dans Chromium avec une voi
 simulée qui saute volontairement des phrases; aucune phrase n'a été perdue.
 Aucun essai audio réel ou Windows réalisé ici.
 Version 3.1 : retrait des boutons « Texte nettoyé » et « Reformuler cette
-section » (reformulation avec Ollama), jugés inutiles à l'usage.
+section » (reformulation avec Ollama), jugés inutiles à l'usage. Sous-titres
+numérotés en caractères normaux reconnus; surlignement de la phrase lue dans
+le PDF.

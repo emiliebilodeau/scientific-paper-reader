@@ -46,20 +46,31 @@ def fingerprint(text):
 
 def join_lines(lines):
     """Join PDF lines into one string, repairing words hyphenated at a line end."""
-    out = ''
-    for line in lines:
-        line = line.replace('\xad', '-').strip()
+    return join_rows([(line, None, None) for line in lines])[0]
+
+
+def join_rows(rows):
+    """Join (text, box, page) rows; also return where each row landed in the text.
+
+    The second value lists [start, end, page, x0, y0, x1, y1] per row, so the
+    interface can highlight on the PDF page the sentence being read.
+    """
+    out, spans = '', []
+    for text, box, page in rows:
+        line = re.sub(r'\s+', ' ', text.replace('\xad', '-')).strip()
         if not line:
             continue
-        if not out:
-            out = line
-        elif re.search(r'[a-zà-ÿ]-$', out) and re.match(r'[a-zà-ÿ]', line):
-            out = out[:-1] + line          # "hydro-" + "logy"
-        elif re.search(r'[\dA-Za-z][-–/]$', out):
-            out = out + line               # "100-" + "year", "1960–" + "2020"
-        else:
-            out = out + ' ' + line
-    return re.sub(r'\s+', ' ', out).strip()
+        if out and re.search(r'[a-zà-ÿ]-$', out) and re.match(r'[a-zà-ÿ]', line):
+            out = out[:-1]                 # "hydro-" + "logy"
+            if spans:
+                spans[-1][1] = len(out)
+        elif out and not re.search(r'[\dA-Za-z][-–/]$', out):
+            out += ' '                     # but "100-" + "year", "1960–" + "2020"
+        start = len(out)
+        out += line
+        if box is not None:
+            spans.append([start, len(out), page] + [round(v, 1) for v in box])
+    return out, spans
 
 
 def _keep_superscript(span, before):
@@ -72,18 +83,71 @@ def _keep_superscript(span, before):
     return False
 
 
-def _block_lines(block):
+def _is_bold(span):
+    return bool(span['flags'] & fitz.TEXT_FONT_BOLD) or 'bold' in span['font'].lower()
+
+
+def _is_italic(span):
+    return bool(span['flags'] & fitz.TEXT_FONT_ITALIC) or re.search(r'italic|oblique', span['font'], re.I)
+
+
+def _style(spans, test):
+    chars = sum(len(s['text']) for s in spans) or 1
+    return sum(len(s['text']) for s in spans if test(s)) >= chars * .7
+
+
+def _lines(block):
     lines = []
     for line in block['lines']:
-        parts = []
+        parts, kept = [], []
         for span in line['spans']:
             if span['flags'] & fitz.TEXT_FONT_SUPERSCRIPT and not _keep_superscript(span, ''.join(parts)):
                 continue
             parts.append(span['text'])
+            if span['text'].strip():
+                kept.append(span)
         text = ''.join(parts).strip()
         if text:
-            lines.append(text)
+            lines.append({'text': text, 'box': line['bbox'], 'spans': kept})
     return lines
+
+
+# "1.1 IDF Curves", "2.3. Study area", "3 Results", "IV. Discussion"
+HEADING_LINE = re.compile(r'^(?:(?:\d+\.)*\d+\.?|[IVX]+\.)\s+[A-ZÀ-Ý]')
+
+
+def _starts_with_heading(lines, width):
+    """True when a block's first line is a numbered heading glued to its paragraph."""
+    if len(lines) < 2:
+        return False
+    first, second = lines[0], lines[1]
+    t = first['text']
+    if not HEADING_LINE.match(t) or len(t) > 100 or TERMINAL.search(t) or MATH.search(t):
+        return False
+    style = lambda line: (_style(line['spans'], _is_bold), bool(_style(line['spans'], _is_italic)),
+                          round(max((s['size'] for s in line['spans']), default=0)))
+    if style(first) != style(second):
+        return True
+    # Same font: accept "1.1 Title" when the line stops well before the column edge.
+    subsection = re.match(r'^\d+\.\d+', t)
+    return bool(subsection) and len(t.split()) <= 12 and first['box'][2] < second['box'][2] - width * .15
+
+
+def _block(lines, page):
+    spans = [s for line in lines for s in line['spans']]
+    chars = sum(len(s['text']) for s in spans) or 1
+    rows = [(line['text'], line['box'], page.number + 1) for line in lines]
+    return {
+        'lines': [line['text'] for line in lines],
+        'rows': rows,
+        'text': join_rows(rows)[0],
+        'box': [round(min(line['box'][0] for line in lines), 1), round(min(line['box'][1] for line in lines), 1),
+                round(max(line['box'][2] for line in lines), 1), round(max(line['box'][3] for line in lines), 1)],
+        'page': page.number + 1,
+        'size': round(sum(s['size'] * len(s['text']) for s in spans) / chars, 2),
+        'bold': _style(spans, _is_bold),
+        'italic': bool(_style(spans, _is_italic)),
+    }
 
 
 def read_blocks(page):
@@ -91,20 +155,14 @@ def read_blocks(page):
     for b in page.get_text('dict', flags=TEXT_FLAGS)['blocks']:
         if b['type'] != 0:
             continue
-        lines = _block_lines(b)
+        lines = _lines(b)
         if not lines:
             continue
-        spans = [s for line in b['lines'] for s in line['spans'] if s['text'].strip()]
-        chars = sum(len(s['text']) for s in spans) or 1
-        blocks.append({
-            'lines': lines,
-            'text': join_lines(lines),
-            'box': [round(v, 1) for v in b['bbox']],
-            'page': page.number + 1,
-            'size': round(sum(s['size'] * len(s['text']) for s in spans) / chars, 2),
-            'bold': sum(len(s['text']) for s in spans if s['flags'] & fitz.TEXT_FONT_BOLD
-                        or 'bold' in s['font'].lower()) >= chars * .7,
-        })
+        width = b['bbox'][2] - b['bbox'][0]
+        if _starts_with_heading(lines, width):
+            blocks.append(_block(lines[:1], page))
+            lines = lines[1:]
+        blocks.append(_block(lines, page))
     return blocks
 
 
@@ -182,8 +240,12 @@ def classify(t, b, body):
     larger = b['size'] >= body + 1
     if SECTIONS.fullmatch(t):
         return 'heading', True, depth
-    if short and starts_upper and len(words) <= 14 and (b['bold'] or larger) and not MATH.search(t):
-        if number or larger or t.upper() == t or len(words) <= 8:
+    if short and starts_upper and len(words) <= 14 and not MATH.search(t):
+        if (b['bold'] or larger) and (number or larger or t.upper() == t or len(words) <= 8):
+            return 'heading', True, depth
+        # Numbered subsections are often set in plain or italic type: "1.1 IDF Curves".
+        if number and len(b['lines']) == 1 and len(words) <= 12 and (depth or b['italic']) \
+                and not TERMINAL.search(t):
             return 'heading', True, depth
     if CAPTION.match(t) or (CAPTION_LOOSE.match(t) and b['size'] < body - .4):
         return ('figure' if t.lower().startswith('fig') else 'table'), False, None
@@ -233,15 +295,18 @@ def extract(doc):
                 kind = 'reference'
             items.append({'id': len(items), 'page': b['page'], 'box': b['box'], 'size': b['size'],
                           'section': section, 'subsection': subsection, 'kind': kind,
-                          'original': t})
+                          'original': t, 'rows': b['rows']})
     if not items:
         raise ValueError('Aucun texte extractible. Cette version nécessite un PDF avec texte '
                          'sélectionnable (sans OCR).')
     items = join_paragraphs(items)
+    for item in items:
+        item['original'], item['spans'] = join_rows(item.pop('rows'))
     warnings.append('L’ordre des colonnes et le retrait des en-têtes/pieds sont estimés '
                     'automatiquement; vérifie le texte préparé. Les figures et tableaux ne sont '
                     'pas interprétés.')
-    return {'items': items, 'pages': len(doc), 'warnings': warnings}
+    sizes = [[round(p.rect.width, 1), round(p.rect.height, 1)] for p in doc]
+    return {'items': items, 'pages': len(doc), 'sizes': sizes, 'warnings': warnings}
 
 
 def continues(prev, cur):
@@ -264,7 +329,8 @@ def join_paragraphs(items):
         if item['kind'] == 'text' and last_text is not None:
             prev = out[last_text]
             if prev['kind'] == 'text' and prev['section'] == item['section'] and continues(prev, item):
-                prev['original'] = join_lines([prev['original'], item['original']])
+                prev['rows'] = prev['rows'] + item['rows']
+                prev['original'] = join_rows(prev['rows'])[0]
                 prev.setdefault('pages', [prev['page']])
                 if item['page'] not in prev['pages']:
                     prev['pages'].append(item['page'])

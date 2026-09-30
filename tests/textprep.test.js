@@ -56,3 +56,11 @@ test('prepare follows the reading options', () => {
   assert.strictEqual(T.prepare({ kind: 'tablecell', original: '0.84 0.91' }, { tables: 'announce' }), '');
   assert.strictEqual(T.prepare({ kind: 'text', original: 'where Q = discharge.' }, {}), 'where Q equals discharge.');
 });
+
+test('locate maps cleaned sentences back to the original text', () => {
+  const original = 'Flood analysis is hard (Smith et al., 2019). We define I = Q/D here [3]. The 100-year flood rose by 14 %.';
+  const spoken = T.chunks(T.clean(original, { citations: true }), 400);
+  assert.strictEqual(spoken.length, 3);
+  const where = T.locate(spoken, original).map(([a, b]) => original.slice(a, b));
+  assert.deepStrictEqual(where, ['Flood analysis is hard', 'We define I = Q/D here', 'The 100-year flood rose by 14']);
+});

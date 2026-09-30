@@ -8,7 +8,7 @@ const synth = window.speechSynthesis;
 
 let raw = [], passages = [];
 let pos = { p: 0, s: 0 };          // passage index, sentence index
-let page = 1, pages = 0, voices = [], editing = false;
+let page = 1, pages = 0, sizes = [], voices = [], editing = false;
 let running = false, paused = false, generation = 0, current = null, watchdog = null;
 let startSeen = false;              // this browser reports onstart, so a missing one means silence
 
@@ -28,6 +28,12 @@ function options() {
 
 /* ---------- Building passages ---------- */
 
+function withSentences(b) {
+  b.sentences = T.chunks(b.text, 400);
+  b.ranges = T.locate(b.sentences, b.original);
+  return b;
+}
+
 function rebuild() {
   halt();
   const opts = options(), section = $('section').value;
@@ -38,7 +44,7 @@ function rebuild() {
     const text = T.prepare(b, opts, previous);
     if (!text) continue;
     previous = b;
-    passages.push({ ...b, text, sentences: T.chunks(text, 400) });
+    passages.push(withSentences({ ...b, text }));
   }
   render();
   status(passages.length + ' passages préparés. Vérifie le texte avant l’écoute.');
@@ -97,18 +103,56 @@ function select(p, s) {
     span.classList.add('now');
     span.scrollIntoView({ block: 'nearest', behavior: moved ? 'smooth' : 'auto' });
   }
-  if (moved || !pages || page !== passages[p].page) showPage(passages[p].page);
+  const marks = sentenceBoxes(passages[p], s);
+  showPage(marks.length ? marks[0].page : passages[p].page, marks);
   controls();
 }
 
-function showPage(n) {
+/** Rectangles, in PDF points, covering sentence s of passage b. */
+function sentenceBoxes(b, s) {
+  const range = b.ranges && b.ranges[s];
+  if (!range || !b.spans) return [];
+  const [a, z] = range, out = [];
+  for (const [start, end, pg, x0, y0, x1, y1] of b.spans) {
+    if (end <= a || start >= z) continue;
+    const from = Math.max(0, (a - start) / (end - start)), to = Math.min(1, (z - start) / (end - start));
+    out.push({ page: pg, x0: x0 + (x1 - x0) * from, x1: x0 + (x1 - x0) * to, y0, y1 });
+  }
+  return out;
+}
+
+let shownMarks = [];
+function drawMarks() {
+  const layer = $('marks'), size = sizes[page - 1];
+  layer.replaceChildren();
+  if (!size) return;
+  const [w, h] = size;
+  for (const m of shownMarks.filter(m => m.page === page)) {
+    const d = document.createElement('div');
+    d.className = 'mark';
+    Object.assign(d.style, { left: (m.x0 / w * 100) + '%', top: (m.y0 / h * 100) + '%',
+      width: ((m.x1 - m.x0) / w * 100) + '%', height: ((m.y1 - m.y0) / h * 100) + '%' });
+    layer.append(d);
+  }
+  const first = layer.firstElementChild, viewer = layer.closest('.viewer');
+  if (first && $('pdfpage').complete) {
+    const top = first.offsetTop + $('pagebox').offsetTop;
+    if (top < viewer.scrollTop + 20 || top > viewer.scrollTop + viewer.clientHeight - 60) {
+      viewer.scrollTo({ top: Math.max(0, top - viewer.clientHeight / 3), behavior: 'smooth' });
+    }
+  }
+}
+
+function showPage(n, marks) {
   if (!pages) return;
   page = Math.max(1, Math.min(pages, n));
+  if (marks) shownMarks = marks;
   $('empty').style.display = 'none';
-  $('pdfpage').style.display = 'block';
+  $('pagebox').style.display = 'block';
   const src = '/page?n=' + page + '&token=' + encodeURIComponent(token);
   if (!$('pdfpage').src.endsWith(src)) $('pdfpage').src = src;
   $('pagenum').textContent = `${page} / ${pages}`;
+  drawMarks();
 }
 
 function controls() {
@@ -280,7 +324,7 @@ function stopEditing(save) {
   if (save) {
     const text = spoken.textContent.replace(/\s+/g, ' ').trim();
     passages[i].text = text;
-    passages[i].sentences = T.chunks(text, 400);
+    withSentences(passages[i]);
     status('Correction enregistrée pour cette session.');
   }
   e.replaceWith(passageElement(passages[i], i));
@@ -301,6 +345,7 @@ async function load(file) {
     if (!res.ok) throw Error(data.error);
     raw = data.items;
     pages = data.pages;
+    sizes = data.sizes || [];
     $('notice').textContent = data.warnings.join(' ');
     $('section').replaceChildren(new Option('Toutes les sections', ''));
     [...new Set(raw.filter(b => b.kind !== 'reference').map(b => b.section))].forEach(s => $('section').append(new Option(s, s)));
@@ -328,6 +373,7 @@ $('previous').onclick = () => move(-1, 0);
 $('next').onclick = () => move(1, 0);
 $('back').onclick = () => move(0, -1);
 $('forward').onclick = () => move(0, 1);
+$('pdfpage').onload = drawMarks;
 $('pageprev').onclick = () => showPage(page - 1);
 $('pagenext').onclick = () => showPage(page + 1);
 $('section').onchange = rebuild;
