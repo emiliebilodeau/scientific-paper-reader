@@ -76,3 +76,42 @@ def glued_heading_page():
             "are updated regularly by national agencies.")
     page.insert_textbox(fitz.Rect(72, 72, 540, 200), text, fontsize=10, fontname="tiro")
     return doc
+
+
+def front_page_with_footnote():
+    """A journal first page: centred title and authors, a full-width abstract, then
+    two columns where the left one is short and ends with a small-print footnote."""
+    doc = fitz.open()
+    W, H = 567, 756
+    for n in (1, 2):
+        page = doc.new_page(width=W, height=H)
+        page.insert_text((49, 48), f"69{19 + n} JOURNAL OF CLIMATE VOLUME 28", fontsize=8)
+        if n == 2:
+            page.insert_textbox(fitz.Rect(52, 62, 279, 700), "known, the evolution of rainfall in a "
+                                "nonstationary climate is intractable. " * 12, fontsize=9.5, fontname="tiro")
+            page.insert_textbox(fitz.Rect(291, 62, 518, 700), "Transient simulations increase the number "
+                                "of observations. " * 12, fontsize=9.5, fontname="tiro")
+            continue
+        page.insert_textbox(fitz.Rect(80, 110, 487, 158), "Canadian RCM Projected Transient Changes to "
+                            "Precipitation Occurrence, Intensity, and Return Level over North America",
+                            fontsize=12, fontname="tibo", align=fitz.TEXT_ALIGN_CENTER)
+        for i, (name, place) in enumerate([("JONATHAN JALBERT", "Université Laval, Quebec, Canada"),
+                                           ("ANNE-CATHERINE FAVRE", "Université Grenoble Alpes, France")]):
+            y = 170 + i * 40
+            page.insert_textbox(fitz.Rect(80, y - 4, 487, y + 14), name, fontsize=8.5, align=fitz.TEXT_ALIGN_CENTER)
+            page.insert_textbox(fitz.Rect(80, y + 14, 487, y + 30), place, fontsize=8,
+                                fontname="tiit", align=fitz.TEXT_ALIGN_CENTER)
+        page.insert_textbox(fitz.Rect(97, 260, 468, 420), "Changes in precipitation occurrence and intensity "
+                            "may have several consequences for the environment. " * 5, fontsize=8, fontname="tiro")
+        page.insert_textbox(fitz.Rect(49, 580, 276, 600), "1. Introduction", fontsize=10, fontname="tibo")
+        page.insert_textbox(fitz.Rect(49, 603, 276, 640), "Precipitation plays a central role for ecosystems, "
+                            "human infrastructures, and freshwater supplies, among", fontsize=9.5, fontname="tiro")
+        page.insert_textbox(fitz.Rect(49, 655, 276, 700), "Corresponding author address: Jonathan Jalbert, "
+                            "Université Laval, Quebec, Canada. E-mail: jonathan.jalbert@ulaval.ca",
+                            fontsize=8, fontname="tiit")
+        page.insert_textbox(fitz.Rect(49, 702, 276, 720), "DOI: 10.1175/JCLI-D-14-00360.1", fontsize=8)
+        page.insert_textbox(fitz.Rect(288, 586, 515, 700), "many other areas. Much infrastructure has been "
+                            "built to resist up to a particular water level. With climate change, "
+                            "precipitation-generating processes might evolve in time. Even though the "
+                            "general rainfall-generating mechanisms are fairly well", fontsize=9.5, fontname="tiro")
+    return doc

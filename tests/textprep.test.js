@@ -53,6 +53,9 @@ test('prepare follows the reading options', () => {
   assert.strictEqual(T.prepare(eq, { equations: 'announce' }, eq), '', 'announce a run of equations once');
   assert.strictEqual(T.prepare(eq, { equations: 'skip' }), '');
   assert.strictEqual(T.prepare({ kind: 'reference', original: 'Smith, 2019.' }, { bibliography: true }), '');
+  const note = { kind: 'note', original: 'Corresponding author address: J. Jalbert.' };
+  assert.strictEqual(T.prepare(note, {}), '', 'footnotes are skipped by default');
+  assert.strictEqual(T.prepare(note, { notes: 'read' }), 'Corresponding author address: J. Jalbert.');
   assert.strictEqual(T.prepare({ kind: 'tablecell', original: '0.84 0.91' }, { tables: 'announce' }), '');
   assert.strictEqual(T.prepare({ kind: 'text', original: 'where Q = discharge.' }, {}), 'where Q equals discharge.');
 });
